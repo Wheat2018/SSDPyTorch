@@ -15,7 +15,7 @@ if not os.path.exists(eval_save_folder):
 net = SSDType(VGG(3))
 evalset = FDDB(dataset='all',
                image_enhancement_fn=BaseTransform(300, (104.0, 117.0, 123.0)))
-net.auto_load_weights(path.join(WEIGHT_ROOT, net.name + '_' + testset.name + '.pth'))
+net.auto_load_weights(path.join(WEIGHT_ROOT, net.name + '_' + evalset.name + '.pth'))
 
 range_of_each_fold = evalset.num_of_each_fold
 for i in range(len(range_of_each_fold) - 1):
