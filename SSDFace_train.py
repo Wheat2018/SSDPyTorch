@@ -25,7 +25,7 @@ parser.add_argument('--dataset', default='FDDB', choices=['FDDB', 'WIDER'],
                     type=str, help='FDDB or WIDER')
 parser.add_argument('--dataset_root', default=FDDB_ROOT,
                     help='Dataset root directory path')
-parser.add_argument('--ssd_weight', default='ssd300_mAP_77.43_v2.pth',
+parser.add_argument('--ssd_weight', default='pretrain/ssd300_mAP_77.43_v2.pth',
                     help='ssd model')
 parser.add_argument('--batch_size', default=4, type=int,
                     help='Batch size for training')
@@ -73,7 +73,7 @@ if args.visdom:
 
 def train():
     if args.dataset == 'FDDB':
-        dataset = FDDB(root=args.dataset_root, dataset='train',
+        dataset = FDDB(root=args.dataset_root, dataset='all',
                        image_enhancement_fn=SSDAugmentation())
         dataset_cfg = dataset.cfg
     else:
