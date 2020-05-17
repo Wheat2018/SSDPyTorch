@@ -122,7 +122,7 @@ class SSDBackbone(nn.Module):
             model_dict = module.state_dict()
             ssd_weights = {k2: v1 for (k1, v1), (k2, v2)
                            in zip(ssd_weights.items(), model_dict.items())
-                           if v2.shape == v1.shape}
+                           if k1 == k2 and v2.shape == v1.shape}
             model_dict.update(ssd_weights)
             # model_dict_items = sorted(model_dict.items(), key=lambda item: (item[0].split('.')[0].replace('vgg', 'base') +
             #                            item[0].split('.')[1].zfill(3)))

@@ -45,7 +45,7 @@ class FDDB(data.Dataset):
     cfg = {
         'num_classes': 2,
         'lr_steps': (2000, 4000, 6000, 8000),
-        'max_iter': 200,
+        'max_iter': 12000,
         'epochs': 20,
         'name': 'FDDB',
     }
