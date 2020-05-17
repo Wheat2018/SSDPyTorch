@@ -13,7 +13,7 @@ net = SSDType(VGG(3))
 testset = FDDB(dataset='test',
                image_enhancement_fn=BaseTransform(net.size, (104.0, 117.0, 123.0)))
 net.auto_load_weights(path.join(WEIGHT_ROOT, net.name + '_' + testset.name + '.pth'))
-
+# net.auto_load_weights(path.join(PRETRAIN_ROOT, 'vgg16_reducedfc.pth'))
 criterion = SSDLossType(0.5, 3, variance=net.variance)
 
 for img_id in range(len(testset)):

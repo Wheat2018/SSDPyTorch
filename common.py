@@ -17,6 +17,7 @@ from ssd_face_softmax import *
 WORK_ROOT = os.path.dirname(__file__)
 DATA_ROOT = os.path.join(WORK_ROOT, 'data')
 WEIGHT_ROOT = os.path.join(WORK_ROOT, 'weights')
+PRETRAIN_ROOT = os.path.join(WEIGHT_ROOT, 'pretrain')
 
 use_sigmoid = True
 
