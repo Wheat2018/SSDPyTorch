@@ -6,6 +6,7 @@ import os
 import torch
 import torch.nn as nn
 import copy
+from collections import defaultdict
 
 
 class SSDBackbone(nn.Module):
@@ -109,6 +110,17 @@ class SSDBackbone(nn.Module):
         raise NotImplementedError
 
     @staticmethod
+    def analyse_state_dict(state_dict):
+        result = '{'
+        counts = defaultdict(int)
+        for para_name, para_value in state_dict.items():
+            counts[para_name.split('.')[0]] += 1
+        for para_name, count in counts.items():
+            result += '%s: %d, ' % (para_name, count)
+
+        return result + '}'
+
+    @staticmethod
     def load_weights(module, file):
         other, ext = os.path.splitext(file)
         if ext == '.pkl' or '.pth':
@@ -122,7 +134,7 @@ class SSDBackbone(nn.Module):
             model_dict = module.state_dict()
             ssd_weights = {k2: v1 for (k1, v1), (k2, v2)
                            in zip(ssd_weights.items(), model_dict.items())
-                           if k1 == k2 and v2.shape == v1.shape}
+                           if v2.shape == v1.shape}
             model_dict.update(ssd_weights)
             # model_dict_items = sorted(model_dict.items(), key=lambda item: (item[0].split('.')[0].replace('vgg', 'base') +
             #                            item[0].split('.')[1].zfill(3)))
@@ -130,6 +142,8 @@ class SSDBackbone(nn.Module):
             #                            item[0].split('.')[1].zfill(3)))
             # for (k1, v1), (k2, v2) in zip(ssd_weights_items, model_dict_items):
             #     model_dict[k2] = v1
+            print('update following parameters:', SSDBackbone.analyse_state_dict(ssd_weights))
+            print('Net parameters:', SSDBackbone.analyse_state_dict(model_dict))
             print('Net has %d parameters. Loaded %d parameters' % (len(model_dict), len(ssd_weights)))
             if len(ssd_weights) < len(model_dict):
                 print('Init remain parameters.')
