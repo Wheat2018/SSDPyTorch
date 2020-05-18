@@ -82,10 +82,11 @@ class SubtractMeans(object):
 class ToAbsoluteCoords(object):
     def __call__(self, image, boxes=None, labels=None):
         height, width, channels = image.shape
-        boxes[:, 0] *= width
-        boxes[:, 2] *= width
-        boxes[:, 1] *= height
-        boxes[:, 3] *= height
+        if boxes is not None and len(boxes) > 0:
+            boxes[:, 0] *= width
+            boxes[:, 2] *= width
+            boxes[:, 1] *= height
+            boxes[:, 3] *= height
 
         return image, boxes, labels
 
@@ -93,10 +94,11 @@ class ToAbsoluteCoords(object):
 class ToPercentCoords(object):
     def __call__(self, image, boxes=None, labels=None):
         height, width, channels = image.shape
-        boxes[:, 0] /= width
-        boxes[:, 2] /= width
-        boxes[:, 1] /= height
-        boxes[:, 3] /= height
+        if boxes is not None and len(boxes) > 0:
+            boxes[:, 0] /= width
+            boxes[:, 2] /= width
+            boxes[:, 1] /= height
+            boxes[:, 3] /= height
 
         return image, boxes, labels
 
@@ -232,6 +234,10 @@ class RandomSampleCrop(object):
         )
 
     def __call__(self, image, boxes=None, labels=None):
+        if boxes is None:
+            return image, boxes, labels
+        if len(boxes) == 0:
+            return image, boxes, labels
         height, width, _ = image.shape
         while True:
             # randomly choose a mode
@@ -330,9 +336,10 @@ class Expand(object):
                      int(left):int(left + width)] = image
         image = expand_image
 
-        boxes = boxes.copy()
-        boxes[:, :2] += (int(left), int(top))
-        boxes[:, 2:] += (int(left), int(top))
+        if boxes is not None and len(boxes) > 0:
+            boxes = boxes.copy()
+            boxes[:, :2] += (int(left), int(top))
+            boxes[:, 2:] += (int(left), int(top))
 
         return image, boxes, labels
 
@@ -342,8 +349,9 @@ class RandomMirror(object):
         _, width, _ = image.shape
         if random.randint(2):
             image = image[:, ::-1]
-            boxes = boxes.copy()
-            boxes[:, 0::2] = width - boxes[:, 2::-2]
+            if boxes is not None and len(boxes) > 0:
+                boxes = boxes.copy()
+                boxes[:, 0::2] = width - boxes[:, 2::-2]
         return image, boxes, classes
 
 
