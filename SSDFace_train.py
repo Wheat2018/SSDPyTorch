@@ -21,10 +21,10 @@ def str2bool(v):
 parser = argparse.ArgumentParser(
     description='Single Shot MultiBox Detector Training With Pytorch')
 train_set = parser.add_mutually_exclusive_group()
-parser.add_argument('--dataset', default='FDDB', choices=['FDDB', 'WIDER'],
+parser.add_argument('--dataset', default='WIDER', choices=['FDDB', 'WIDER'],
                     type=str, help='FDDB or WIDER')
-parser.add_argument('--dataset_root', default=FDDB_ROOT,
-                    help='Dataset root directory path')
+# parser.add_argument('--dataset_root', default=FDDB_ROOT,
+#                     help='Dataset root directory path')
 parser.add_argument('--ssd_weight', default='SSDFace300_VGG_FDDB_fromtrain.pth',
                     help='ssd model')
 parser.add_argument('--batch_size', default=4, type=int,
@@ -73,9 +73,14 @@ if args.visdom:
 
 def train():
     if args.dataset == 'FDDB':
-        dataset = FDDB(root=args.dataset_root, dataset='all',
+        dataset = FDDB(dataset='train',
                        image_enhancement_fn=SSDAugmentation())
         dataset_cfg = dataset.cfg
+    elif args.dataset == 'WIDER':
+        dataset = WIDER(dataset='train',
+                        image_enhancement_fn=SSDAugmentation())
+        dataset_cfg = dataset.cfg
+
     else:
         dataset = None
         dataset_cfg = None
@@ -197,14 +202,6 @@ def train():
 """
 Utility Functions Implement
 """
-def xavier(param):
-    init.xavier_uniform(param)
-
-
-def weights_init(m):
-    if isinstance(m, nn.Conv2d):
-        xavier(m.weight.data)
-        m.bias.data.zero_()
 
 
 def create_vis_plot(_xlabel, _ylabel, _title, _legend):

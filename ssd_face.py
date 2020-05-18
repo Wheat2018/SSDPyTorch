@@ -132,7 +132,7 @@ class SSDFace(SSDBackbone):
 
 
 class SSDFaceLoss(nn.Module):
-    def __init__(self, match_overlap, neg_pos_rate, do_neg_mining=False, variance=None, is_cuda=None):
+    def __init__(self, match_overlap, neg_pos_rate, do_neg_mining=True, variance=None, is_cuda=None):
         super(SSDFaceLoss, self).__init__()
         self.match_overlap = match_overlap
         self.neg_pos_rate = neg_pos_rate
