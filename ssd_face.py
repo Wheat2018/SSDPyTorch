@@ -190,7 +190,7 @@ class SSDFaceLoss(nn.Module):
         """calculate Localization Loss"""
         pos_loc_t = loc_t[pos_loc_mask].view(-1, 4)
         pos_loc_p = loc_p[pos_loc_mask].view(-1, 4)
-        loc_loss = F.smooth_l1_loss(pos_loc_p, pos_loc_t, size_average=False)
+        loc_loss = F.smooth_l1_loss(pos_loc_p, pos_loc_t, reduction='sum')
 
         """calculate Confidence Loss"""
         conf_loss_matrix = conf_p.clone()
