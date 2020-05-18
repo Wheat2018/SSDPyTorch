@@ -1,4 +1,5 @@
 from .fddb import *
+from .wider import *
 
 
 def detection_collate(batch):

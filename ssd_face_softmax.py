@@ -152,7 +152,7 @@ class SSDLoss(nn.Module):
             variance = [0.1, 0.2]
         self.variance = variance
 
-    def forward(self, predictions, targets, conf_gain=1):
+    def forward(self, predictions, targets, conf_gain=1, thresh=0.4):
         """
         :param predictions: (loc_p, conf_p, priors)
                             loc_p, Shape: tensor[batch_num,priors_num,4]
@@ -172,10 +172,13 @@ class SSDLoss(nn.Module):
         loc_t = torch.Tensor(batch_num, priors_num, 4)
         conf_t = torch.LongTensor(batch_num, priors_num)
         for idx in range(batch_num):
-            truths = targets[idx][:, :-1].data
-            labels = targets[idx][:, -1].data
-            match(self.match_overlap, truths, priors, self.variance, labels,
-                  loc_t, conf_t, idx)
+            if len(targets[idx]) == 0:
+                conf_t[idx] = 0
+            else:
+                truths = targets[idx][:, :-1].data
+                labels = targets[idx][:, -1].data
+                match(self.match_overlap, truths, priors, self.variance, labels,
+                      loc_t, conf_t, idx)
         if self.is_cuda:
             loc_t = loc_t.cuda()
             conf_t = conf_t.cuda()
@@ -208,16 +211,20 @@ class SSDLoss(nn.Module):
             _, neg_loss_idx = conf_loss_matrix.sort(1, descending=True)
             _, conf_loss_rank = neg_loss_idx.sort(1)
             max_neg_num_of_each_batch = pos_mask.sum(1, keepdim=True) * self.neg_pos_rate
-            max_neg_num_of_each_batch.clamp_(-1, priors_num)
+            max_neg_num_of_each_batch.clamp_(max=priors_num)
             part_neg_mask = conf_loss_rank < max_neg_num_of_each_batch.expand_as(conf_loss_rank)
             neg_conf_loss = conf_loss_matrix[part_neg_mask].sum()
+            pos_sum = pos_mask.sum().clamp_(min=1)
+            conf_loss = (pos_conf_loss + neg_conf_loss) / pos_sum
         else:
-            neg_conf_loss = conf_loss_matrix[~pos_mask].sum()
+            over_thresh_neg_mask = torch.sigmoid(conf_p).gt(thresh) & (~pos_mask)
+            neg_conf_loss = conf_loss_matrix[over_thresh_neg_mask].sum()
+            pos_sum = pos_mask.sum().clamp_(min=1)
+            neg_sum = over_thresh_neg_mask.sum().clamp_(min=1)
+            conf_loss = pos_conf_loss / pos_sum + neg_conf_loss * self.neg_pos_rate / neg_sum
 
-        conf_loss = pos_conf_loss + neg_conf_loss
-
-        N = pos_mask.sum()
-        return loc_loss / N, conf_gain * conf_loss / N
+        loc_loss /= pos_sum
+        return loc_loss, conf_gain * conf_loss
 
 
 if __name__ == '__main__':

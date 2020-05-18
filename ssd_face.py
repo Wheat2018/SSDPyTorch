@@ -132,7 +132,7 @@ class SSDFace(SSDBackbone):
 
 
 class SSDFaceLoss(nn.Module):
-    def __init__(self, match_overlap, neg_pos_rate, do_neg_mining=True, variance=None, is_cuda=None):
+    def __init__(self, match_overlap, neg_pos_rate, do_neg_mining=False, variance=None, is_cuda=None):
         super(SSDFaceLoss, self).__init__()
         self.match_overlap = match_overlap
         self.neg_pos_rate = neg_pos_rate
@@ -146,7 +146,7 @@ class SSDFaceLoss(nn.Module):
             variance = [0.1, 0.2]
         self.variance = variance
 
-    def forward(self, predictions, targets, conf_gain=1):
+    def forward(self, predictions, targets, conf_gain=1, thresh=0.4):
         """
         :param predictions: (loc_p, conf_p, priors)
                             loc_p, Shape: tensor[batch_num,priors_num,4]
@@ -165,10 +165,13 @@ class SSDFaceLoss(nn.Module):
         loc_t = torch.Tensor(batch_num, priors_num, 4)
         matched = torch.LongTensor(batch_num, priors_num)
         for idx in range(batch_num):
-            truths = targets[idx][:, :-1].data
-            labels = targets[idx][:, -1].data
-            match(self.match_overlap, truths, priors, self.variance, labels,
-                  loc_t, matched, idx)
+            if len(targets[idx]) == 0:
+                matched[idx] = 0
+            else:
+                truths = targets[idx][:, :-1].data
+                labels = targets[idx][:, -1].data
+                match(self.match_overlap, truths, priors, self.variance, labels,
+                      loc_t, matched, idx)
         if self.is_cuda:
             loc_t = loc_t.cuda()
             matched = matched.cuda()
@@ -196,21 +199,25 @@ class SSDFaceLoss(nn.Module):
         #   --the Confidence Loss of positive priors. Calculate directly.
         pos_conf_loss = conf_loss_matrix[pos_mask].sum()
         #   --the Confidence Loss of negative priors. Do Hard Negative Mining: delete some negative priors
-        conf_loss_matrix[pos_mask] = 0
         if self.do_neg_mining:
+            conf_loss_matrix[pos_mask] = 0
             _, neg_loss_idx = conf_loss_matrix.sort(1, descending=True)
             _, conf_loss_rank = neg_loss_idx.sort(1)
             max_neg_num_of_each_batch = pos_mask.sum(1, keepdim=True) * self.neg_pos_rate
-            max_neg_num_of_each_batch.clamp_(-1, priors_num)
+            max_neg_num_of_each_batch.clamp_(max=priors_num)
             part_neg_mask = conf_loss_rank < max_neg_num_of_each_batch.expand_as(conf_loss_rank)
             neg_conf_loss = conf_loss_matrix[part_neg_mask].sum()
+            pos_sum = pos_mask.sum().clamp_(min=1)
+            conf_loss = (pos_conf_loss + neg_conf_loss) / pos_sum
         else:
-            neg_conf_loss = conf_loss_matrix.sum()
+            over_thresh_neg_mask = torch.sigmoid(conf_p).gt(thresh) & (~pos_mask)
+            neg_conf_loss = conf_loss_matrix[over_thresh_neg_mask].sum()
+            pos_sum = pos_mask.sum().clamp_(min=1)
+            neg_sum = over_thresh_neg_mask.sum().clamp_(min=1)
+            conf_loss = pos_conf_loss / pos_sum + neg_conf_loss * self.neg_pos_rate / neg_sum
 
-        conf_loss = pos_conf_loss + neg_conf_loss
-
-        N = pos_mask.sum()
-        return loc_loss / N, conf_gain * conf_loss / N
+        loc_loss /= pos_sum
+        return loc_loss, conf_gain * conf_loss
 
 
 if __name__ == '__main__':
