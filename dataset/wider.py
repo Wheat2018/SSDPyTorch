@@ -57,24 +57,25 @@ class WIDER(data.Dataset):
                     self.image_names.append(line.replace("\n", ""))
                     line = f.readline()
                     num_of_boxes = int(line)
+                    raw_boxes = []
                     if num_of_boxes == 0:       # In WIDER, images without boxes followed by '0 0 0 0 0 0 0 0 0 0' line.
                         f.readline()
-                        line = f.readline()
-                        continue
-                    raw_boxes = []
-                    for i in range(num_of_boxes):
-                        line = f.readline()
-                        box_ele = line.split(' ')
-                        raw_box = [float(box_ele[0]),
-                                   float(box_ele[1]),
-                                   float(box_ele[0]) + float(box_ele[2]),
-                                   float(box_ele[1]) + float(box_ele[3])]
-                        raw_boxes.append(raw_box)
+                    else:
+                        for i in range(num_of_boxes):
+                            line = f.readline()
+                            box_ele = line.split(' ')
+                            raw_box = [float(box_ele[0]),
+                                       float(box_ele[1]),
+                                       float(box_ele[0]) + float(box_ele[2]),
+                                       float(box_ele[1]) + float(box_ele[3])]
+                            raw_boxes.append(raw_box)
                     self.image_rawBoxes.append(raw_boxes)
                     line = f.readline()
             end_index = len(self.image_names)
             self.range_of_each_fold[fold] = [start_index, end_index]
-        self.image_preBoxes = [torch.Tensor() for i in range(len(self))]
+        self.image_preBoxes = [torch.Tensor() for i in range(len(self.image_names))]
+        assert len(self.image_rawBoxes) == len(self.image_names)
+        assert len(self.image_preBoxes) == len(self.image_names)
 
     def __getitem__(self, index):
         im, gt, h, w = self.pull_item(index)
