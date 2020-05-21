@@ -9,8 +9,7 @@ if torch.cuda.is_available():
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 eval_save_folder = 'face_eval/wider'
-if not os.path.exists(eval_save_folder):
-    os.mkdir(eval_save_folder)
+os.makedirs(eval_save_folder, exist_ok=True)
 
 net = SSDType(VGG(3))
 dataset = WIDER(dataset='val',
