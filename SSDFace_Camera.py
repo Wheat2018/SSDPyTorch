@@ -4,7 +4,6 @@
 """
 from dataset import *
 from common import *
-from pypylon import pylon
 
 if torch.cuda.is_available():
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
@@ -17,6 +16,8 @@ pre_solve = BaseTransform(net.size, (104.0, 117.0, 123.0))
 
 use_pylon = False
 if use_pylon:
+    from pypylon import pylon
+
     camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
     camera.Open()
     camera.StartGrabbing(pylon.GrabStrategy_OneByOne)
