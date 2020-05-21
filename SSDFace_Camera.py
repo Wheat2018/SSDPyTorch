@@ -47,7 +47,7 @@ while True:
         cv2.putText(image, display_txt, (int(pt[0]), int(pt[1]) + 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.3, inverse_color, lineType=cv2.LINE_AA)
 
-    image = cv2.resize(image, (400, 300))
+    image = cv2.resize(image, (800, 600))
     cv2.imshow('image', image)
 
     count = (count + 1) % 10
