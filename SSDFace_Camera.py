@@ -4,21 +4,35 @@
 """
 from dataset import *
 from common import *
+from pypylon import pylon
+
 if torch.cuda.is_available():
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 net = SSDType(VGG(3))
 # net.auto_load_weights(path.join(WEIGHT_ROOT, net.name + '_' + 'FDDB_fromtrain' + '.pth'))
-net.auto_load_weights(path.join(WEIGHT_ROOT, net.name + '_' + 'WIDER' + '.pth'))
+net.auto_load_weights(path.join(WEIGHT_ROOT, net.name + '_' + 'WIDER_40000' + '.pth'))
 
 pre_solve = BaseTransform(net.size, (104.0, 117.0, 123.0))
 
-cap = cv2.VideoCapture(0)
+use_pylon = False
+if use_pylon:
+    camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
+    camera.Open()
+    camera.StartGrabbing(pylon.GrabStrategy_OneByOne)
+else:
+    camera = cv2.VideoCapture(0)
 
 t0 = time.time()
 count = 0
 while True:
-    success, image = cap.read()
+    if use_pylon:
+        image = camera.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
+        image_handle = image
+        image = image.Array
+        image = cv2.cvtColor(image, cv2.COLOR_YUV2BGR_Y422)
+    else:
+        success, image = camera.read()
 
     x, _, _ = pre_solve(image)
     x = x[:, :, (2, 1, 0)]
@@ -50,6 +64,8 @@ while True:
     image = cv2.resize(image, (800, 600))
     cv2.imshow('image', image)
 
+    if use_pylon:
+        image_handle.Release()
     count = (count + 1) % 10
     if count == 0:
         print('FPS:%.4f' % (10 / (time.time() - t0)))
@@ -62,6 +78,9 @@ while True:
         cv2.imwrite("image2.jpg", image)
         cv2.destroyAllWindows()
         break
-# 关闭摄像头
-cap.release()
+
+if use_pylon:
+    camera.Close()
+else:
+    camera.release()
 
