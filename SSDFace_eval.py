@@ -17,6 +17,7 @@ dataset = WIDER(dataset='val',
 net.auto_load_weights(path.join(WEIGHT_ROOT, net.name + '_' + dataset.name + '.pth'))
 
 t0 = time.time()
+t00 = t0
 for idx in range(len(dataset)):
     x, boxes, h, w = dataset.pull_item(idx)
     x = x.unsqueeze(0)
@@ -26,7 +27,8 @@ for idx in range(len(dataset)):
     detection = y[0]
     dataset.sign_item(idx, detection, h, w)
     if idx % 10 == 0:
-        print('detect:%d/%d' % (idx, len(dataset)))
+        print('detect:%d/%d, FPS:%.4f' % (idx, len(dataset), 10 / (time.time() - t00)))
+        t00 = time.time()
 t1 = time.time()
 print('detect cost: %.4f sec, FPS: %.4f' % ((t1 - t0), len(dataset) / (t1 - t0)))
 
