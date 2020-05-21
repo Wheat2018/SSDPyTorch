@@ -15,6 +15,8 @@ pre_solve = BaseTransform(net.size, (104.0, 117.0, 123.0))
 
 cap = cv2.VideoCapture(0)
 
+t0 = time.time()
+count = 0
 while True:
     success, image = cap.read()
 
@@ -45,7 +47,13 @@ while True:
         cv2.putText(image, display_txt, (int(pt[0]), int(pt[1]) + 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.3, inverse_color, lineType=cv2.LINE_AA)
 
+    image = cv2.resize(image, (400, 300))
     cv2.imshow('image', image)
+
+    count = (count + 1) % 10
+    if count == 0:
+        print('FPS:%.4f' % (10 / (time.time() - t0)))
+        t0 = time.time()
     k = cv2.waitKey(1)
     if k == 27:
         cv2.destroyAllWindows()
