@@ -21,11 +21,11 @@ def str2bool(v):
 parser = argparse.ArgumentParser(
     description='Single Shot MultiBox Detector Training With Pytorch')
 train_set = parser.add_mutually_exclusive_group()
-parser.add_argument('--dataset', default='WIDER', choices=['FDDB', 'WIDER'],
+parser.add_argument('--dataset', default='FDDB', choices=['FDDB', 'WIDER'],
                     type=str, help='FDDB or WIDER')
 # parser.add_argument('--dataset_root', default=FDDB_ROOT,
 #                     help='Dataset root directory path')
-parser.add_argument('--ssd_weight', default='SSDFace300_VGG_FDDB_fromtrain.pth',
+parser.add_argument('--ssd_weight', default='SSDFace300_VGG_FDDB_fromtrain1.pth',
                     help='ssd model')
 parser.add_argument('--batch_size', default=4, type=int,
                     help='Batch size for training')

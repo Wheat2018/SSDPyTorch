@@ -8,13 +8,13 @@ from dataset import *
 if torch.cuda.is_available():
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
-eval_save_folder = 'face_eval/'
+eval_save_folder = 'face_eval/wider'
 if not os.path.exists(eval_save_folder):
     os.mkdir(eval_save_folder)
 
 net = SSDType(VGG(3))
-dataset = FDDB(dataset='all',
-               image_enhancement_fn=BaseTransform(300, (104.0, 117.0, 123.0)))
+dataset = WIDER(dataset='val',
+                image_enhancement_fn=BaseTransform(300, (104.0, 117.0, 123.0)))
 net.auto_load_weights(path.join(WEIGHT_ROOT, net.name + '_' + dataset.name + '.pth'))
 
 t0 = time.time()
@@ -35,5 +35,4 @@ filenames = dataset.write_eval_result(eval_save_folder)
 t2 = time.time()
 print('write cost: %.4f sec' % (t2 - t1))
 print('have written:')
-for filename in filenames:
-    print(filename)
+print(len(filenames))

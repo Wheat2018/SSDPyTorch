@@ -200,7 +200,10 @@ class SSDFaceLoss(nn.Module):
         pos_conf_loss = conf_loss_matrix[pos_mask].sum()
         #   --the Confidence Loss of negative priors. Do Hard Negative Mining: delete some negative priors
         if self.do_neg_mining:
-            conf_loss_matrix[pos_mask] = 0
+            # conf_loss_matrix[pos_mask] = 0
+            neg_conf_loss_matrix = torch.zeros_like(conf_loss_matrix)
+            neg_conf_loss_matrix[~pos_mask] = conf_loss_matrix[~pos_mask]
+            conf_loss_matrix = neg_conf_loss_matrix
             _, neg_loss_idx = conf_loss_matrix.sort(1, descending=True)
             _, conf_loss_rank = neg_loss_idx.sort(1)
             max_neg_num_of_each_batch = pos_mask.sum(1, keepdim=True) * self.neg_pos_rate

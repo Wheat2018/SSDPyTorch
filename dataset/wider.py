@@ -84,22 +84,24 @@ class WIDER(data.Dataset):
     def __len__(self):
         return len(self.image_names)
 
-    def write_eval_result(self, save_folder, save_filename='fold-%s-out.txt', fold=None):
+    def write_eval_result(self, save_folder, fold=None):
         result = []
         if fold is None:
             fold = self.image_folds[self.dataset]
 
         if isinstance(fold, list):
             for f in fold:
-                result += self.write_eval_result(save_folder, save_filename, f)
+                result += self.write_eval_result(save_folder, f)
         else:
-            filename = path.join(save_folder, save_filename % fold)
-            with open(filename, 'wt') as file:
-                idx_range = self.range_of_each_fold[fold]
-                for idx in range(idx_range[0], idx_range[1]):
-                    image_name = self.image_names[idx]
-                    image_name, _ = os.path.splitext(image_name)
-
+            idx_range = self.range_of_each_fold[fold]
+            for idx in range(idx_range[0], idx_range[1]):
+                name = self.image_names[idx]
+                (dirname, image_name) = path.split(name)
+                image_name, _ = os.path.splitext(image_name)
+                dirname = path.join(save_folder, dirname)
+                os.makedirs(dirname, exist_ok=True)
+                filename = path.join(dirname, image_name + '.txt')
+                with open(filename, 'wt') as file:
                     file.write(image_name + '\n')
                     file.write(str(len(self.image_preBoxes[idx])) + '\n')
                     for box in self.image_preBoxes[idx]:
@@ -107,7 +109,7 @@ class WIDER(data.Dataset):
                         for e in box:
                             line += '%.6f ' % e
                         file.write(line + '\n')
-            result.append(filename)
+                result.append(filename)
         return result
 
     def sign_item(self, index, boxes_conf, h, w):
