@@ -10,7 +10,7 @@ if torch.cuda.is_available():
 
 net = SSDType(VGG(3))
 # net.auto_load_weights(path.join(WEIGHT_ROOT, net.name + '_' + 'FDDB_fromtrain' + '.pth'))
-net.auto_load_weights(path.join(WEIGHT_ROOT, net.name + '_' + 'WIDER_40000' + '.pth'))
+net.auto_load_weights(path.join(WEIGHT_ROOT, net.name + '_' + 'WIDER' + '_20000.pth'))
 
 pre_solve = BaseTransform(net.size, (104.0, 117.0, 123.0))
 

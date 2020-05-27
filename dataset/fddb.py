@@ -184,6 +184,7 @@ class FDDB(data.Dataset):
 
 
 if __name__ == '__main__':
-    temp = FDDB(dataset='test')
+    temp = FDDB(dataset='train')
+    print(len(temp))
     img, gt_boxes, height, width = temp.pull_item(1)
     print(gt_boxes)

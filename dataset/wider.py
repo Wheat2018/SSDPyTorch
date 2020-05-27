@@ -167,6 +167,7 @@ class WIDER(data.Dataset):
 
 
 if __name__ == '__main__':
-    temp = WIDER(dataset='test')
+    temp = WIDER(dataset='train')
+    print(len(temp))
     img, gt_boxes, height, width = temp.pull_item(1)
     print(gt_boxes)
