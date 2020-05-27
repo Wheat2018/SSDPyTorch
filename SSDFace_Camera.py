@@ -23,6 +23,8 @@ if use_pylon:
     camera.StartGrabbing(pylon.GrabStrategy_OneByOne)
 else:
     camera = cv2.VideoCapture(0)
+    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 
 t0 = time.time()
 count = 0
@@ -62,7 +64,6 @@ while True:
         cv2.putText(image, display_txt, (int(pt[0]), int(pt[1]) + 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.3, inverse_color, lineType=cv2.LINE_AA)
 
-    image = cv2.resize(image, (800, 600))
     cv2.imshow('image', image)
 
     if use_pylon:
