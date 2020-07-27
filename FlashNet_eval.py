@@ -1,9 +1,11 @@
 """
     By.Wheat
-    2020.05.14
+    2020.07.26
 """
 
 from dataset import *
+from FlashNet.models.centerface import *
+from FlashNet.utils.misc.checkpoint import *
 
 if torch.cuda.is_available():
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
@@ -11,10 +13,17 @@ if torch.cuda.is_available():
 eval_save_folder = 'face_eval/wider'
 os.makedirs(eval_save_folder, exist_ok=True)
 
-net = SSDType(VGG(3))
+net_cfg = {
+    'net_name': 'CenterFace',
+    'num_classes': 1,
+    'use_ldmk': False
+}
+
+net = CenterFace(phase='test', cfg=net_cfg)
+net = load_model(net, "FlashNet/checkpoints/CenterFace.pth")
+net.eval()
 dataset = WIDER(dataset='val',
-                image_enhancement_fn=BaseTransform(300, (104.0, 117.0, 123.0)))
-net.auto_load_weights(path.join(WEIGHT_ROOT, net.name + '_' + dataset.name + '_20000.pth'))
+                image_enhancement_fn=BaseTransform((-1, 600), (104.0, 117.0, 123.0)))
 
 t0 = time.time()
 t00 = t0
@@ -23,8 +32,19 @@ for idx in range(len(dataset)):
     x = x.unsqueeze(0)
     if torch.cuda.is_available():
         x = x.cuda()
-    y = net.detect(x, conf_thresh=0.1)
-    detection = y[0]
+        net = net.cuda()
+    wh, conf, _ = net(x)  # forward pass
+    detection = net.post_process(wh,
+                                 conf,
+                                 x.shape[-2],
+                                 x.shape[-1],
+                                 h,
+                                 w)
+    detection = detection[:, (4, 0, 1, 2, 3)]
+    detection[:, 1] /= w
+    detection[:, 3] /= w
+    detection[:, 2] /= h
+    detection[:, 4] /= h
     dataset.sign_item(idx, detection, h, w)
     if idx % 10 == 0:
         print('detect:%d/%d, FPS:%.4f' % (idx, len(dataset), 10 / (time.time() - t00)))
