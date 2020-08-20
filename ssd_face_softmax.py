@@ -7,6 +7,8 @@ import torch.nn.functional as F
 from layers import *
 from layers.box_utils import decode, nms, match
 import os
+import torch
+import torch.nn as nn
 
 from base_nets import *
 
@@ -137,7 +139,7 @@ class SSD(SSDBackbone):
         return output
 
     def auto_load_weights(self, file):
-        self.load_weights(self, file)
+        load_weights(self, file)
 
 
 class SSDLoss(nn.Module):

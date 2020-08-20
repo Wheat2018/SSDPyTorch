@@ -4,8 +4,8 @@
 """
 from dataset import *
 from common import *
-from FlashNet.models.centerface import *
-from FlashNet.utils.misc.checkpoint import *
+from FlashNet.facedet.models.centerface import *
+from FlashNet.facedet.utils.misc.checkpoint import *
 
 if torch.cuda.is_available():
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
@@ -17,7 +17,7 @@ net_cfg = {
 }
 
 net = CenterFace(phase='test', cfg=net_cfg)
-net = load_model(net, "FlashNet/checkpoints/CenterFace.pth")
+net = load_model(net, "FlashNet/facedet/checkpoints/CenterFace.pth")
 net.eval()
 
 pre_solve = BaseTransform((-1, 600), (104.0, 117.0, 123.0))

@@ -8,6 +8,8 @@ import torch.nn as nn
 import copy
 from collections import defaultdict
 
+__all__ = ['SSDBackbone', 'VGG', 'repeat_conv2d', 'load_weights']
+
 
 class SSDBackbone(nn.Module):
     """
@@ -109,71 +111,6 @@ class SSDBackbone(nn.Module):
     def detect(self, *args):
         raise NotImplementedError
 
-    @staticmethod
-    def analyse_state_dict(state_dict):
-        result = '{'
-        counts = defaultdict(int)
-        for para_name, para_value in state_dict.items():
-            counts[para_name.split('.')[0]] += 1
-        for para_name, count in counts.items():
-            result += '%s: %d, ' % (para_name, count)
-
-        return result + '}'
-
-    @staticmethod
-    def load_weights(module, file):
-        other, ext = os.path.splitext(file)
-        if ext == '.pkl' or '.pth':
-            print('Loading weights into state dict...')
-            print(file)
-            try:
-                # Some .pth files save with device cpu. Thus use cpu uniformly.
-                ssd_weights = torch.load(file, map_location=torch.device('cpu'))
-            except Exception as e:
-                print('None file or error file.', e)
-                return
-            model_dict = module.state_dict()
-            update_weights = {k2: v1 for (k1, v1), (k2, v2)
-                              in zip(ssd_weights.items(), model_dict.items())
-                              if v2.shape == v1.shape}
-            model_dict.update(update_weights)
-            # model_dict_items = sorted(model_dict.items(), key=lambda item: (item[0].split('.')[0].replace('vgg', 'base') +
-            #                            item[0].split('.')[1].zfill(3)))
-            # ssd_weights_items = sorted(ssd_weights.items(), key=lambda item: (item[0].split('.')[0].replace('vgg', 'base') +
-            #                            item[0].split('.')[1].zfill(3)))
-            # for (k1, v1), (k2, v2) in zip(ssd_weights_items, model_dict_items):
-            #     model_dict[k2] = v1
-            print('Load   %d parameters:' % len(ssd_weights), SSDBackbone.analyse_state_dict(ssd_weights))
-            print('Net    %d parameters:' % len(model_dict), SSDBackbone.analyse_state_dict(model_dict))
-            print('update %d parameters:' % len(update_weights), SSDBackbone.analyse_state_dict(update_weights))
-            if len(ssd_weights) < len(model_dict):
-                print('Init remain parameters.')
-                module.apply(SSDBackbone.weights_init)
-            module.load_state_dict(model_dict)
-            print('Finished!')
-        else:
-            print('Only .pth and .pkl files supported.')
-
-    @staticmethod
-    def weights_init(m):
-        if isinstance(m, nn.Conv2d):
-            nn.init.xavier_uniform(m.weight.data)
-            m.bias.data.zero_()
-
-
-def repeat_conv2d(repeat, in_channels, out_channels, kernel_size, stride=1,
-                  padding=0, dilation=1, groups=1, bias=True,
-                  bn=False, activation=None):
-    out_list = []
-    for i in range(repeat):
-        in_channels = in_channels if i == 0 else out_channels
-        out_list += [nn.Conv2d(in_channels, out_channels, kernel_size, stride,
-                               padding, dilation, groups, bias)]
-        if bn:
-            out_list += [nn.BatchNorm2d(out_channels)]
-        if activation is not None:
-            out_list += [copy.deepcopy(activation)]
-    return out_list, out_channels
 
 
 class VGG(nn.ModuleList):
@@ -233,3 +170,69 @@ class VGG(nn.ModuleList):
 
     def forward(self):
         raise NotImplementedError
+
+
+def repeat_conv2d(repeat, in_channels, out_channels, kernel_size, stride=1,
+                  padding=0, dilation=1, groups=1, bias=True,
+                  bn=False, activation=None):
+    out_list = []
+    for i in range(repeat):
+        in_channels = in_channels if i == 0 else out_channels
+        out_list += [nn.Conv2d(in_channels, out_channels, kernel_size, stride,
+                               padding, dilation, groups, bias)]
+        if bn:
+            out_list += [nn.BatchNorm2d(out_channels)]
+        if activation is not None:
+            out_list += [copy.deepcopy(activation)]
+    return out_list, out_channels
+
+
+def analyse_state_dict(state_dict):
+    result = '{'
+    counts = defaultdict(int)
+    for para_name, para_value in state_dict.items():
+        counts[para_name.split('.')[0]] += 1
+    for para_name, count in counts.items():
+        result += '%s: %d, ' % (para_name, count)
+
+    return result + '}'
+
+
+def load_weights(module, file):
+    other, ext = os.path.splitext(file)
+    if ext == '.pkl' or '.pth':
+        print('Loading weights into state dict...')
+        print(file)
+        try:
+            # Some .pth files save with device cpu. Thus use cpu uniformly.
+            ssd_weights = torch.load(file, map_location=torch.device('cpu'))
+        except Exception as e:
+            print('None file or error file.', e)
+            return
+        model_dict = module.state_dict()
+        update_weights = {k2: v1 for (k1, v1), (k2, v2)
+                          in zip(ssd_weights.items(), model_dict.items())
+                          if v2.shape == v1.shape}
+        model_dict.update(update_weights)
+        # model_dict_items = sorted(model_dict.items(), key=lambda item: (item[0].split('.')[0].replace('vgg', 'base') +
+        #                            item[0].split('.')[1].zfill(3)))
+        # ssd_weights_items = sorted(ssd_weights.items(), key=lambda item: (item[0].split('.')[0].replace('vgg', 'base') +
+        #                            item[0].split('.')[1].zfill(3)))
+        # for (k1, v1), (k2, v2) in zip(ssd_weights_items, model_dict_items):
+        #     model_dict[k2] = v1
+        print('Load   %d parameters:' % len(ssd_weights), analyse_state_dict(ssd_weights))
+        print('Net    %d parameters:' % len(model_dict), analyse_state_dict(model_dict))
+        print('update %d parameters:' % len(update_weights), analyse_state_dict(update_weights))
+        if len(ssd_weights) < len(model_dict):
+            print('Init remain parameters.')
+            module.apply(weights_init)
+        module.load_state_dict(model_dict)
+        print('Finished!')
+    else:
+        print('Only .pth and .pkl files supported.')
+
+
+def weights_init(m):
+    if isinstance(m, nn.Conv2d):
+        nn.init.xavier_uniform(m.weight.data)
+        m.bias.data.zero_()

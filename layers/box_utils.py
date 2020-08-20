@@ -91,7 +91,9 @@ def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
         point_form(priors)
     )
     # (Bipartite Matching)
-    # [1,num_objects] best prior for each ground truth 应该是[num_objects,1]
+    # best_prior_idx[num_truths,1]:对于每个真值框，找到与其最重合的先验框的索引值(0到num_priors)
+    # best_truth_idx[1,num_priors]:对于每个先验框，找到与其最重合的真值框的索引值(0到num_truths)
+    # [1,num_truths] best prior for each ground truth 应该是[num_truths,1]
     best_prior_overlap, best_prior_idx = overlaps.max(1, keepdim=True)
     # [1,num_priors] best ground truth for each prior
     best_truth_overlap, best_truth_idx = overlaps.max(0, keepdim=True)
@@ -104,12 +106,15 @@ def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
     # ensure every gt matches with its prior of max overlap
     for j in range(best_prior_idx.size(0)):
         best_truth_idx[best_prior_idx[j]] = j
+    # 至此，所有真值框至少匹配一个先验框，所有先验框都匹配了某个真值框。
+    # best_truth_idx[num_priors]被压缩为一维向量，记录了每个先验框匹配到的真值框索引。
     matches = truths[best_truth_idx]          # Shape: [num_priors,4]
-    conf = labels[best_truth_idx] + 1         # Shape: [num_priors]
+    conf = labels[best_truth_idx] + 1         # Shape: [num_priors] 这里+1是把背景类别算上
     conf[best_truth_overlap < threshold] = 0  # label as background
     loc = encode(matches, priors, variances)
     loc_t[idx] = loc    # [num_priors,4] encoded offsets to learn
     conf_t[idx] = conf  # [num_priors] top class label for each prior
+    # 如上所说，conf_t并不是置信度，而是真值类别数。
 
 
 def encode(matched, priors, variances):
