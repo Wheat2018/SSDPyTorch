@@ -34,17 +34,17 @@ parser.add_argument('--dataset', default='WIDER', choices=['FDDB', 'WIDER'],
 #                     help='Dataset root directory path')
 parser.add_argument('--ssd_weight', default='SSDFace300_VGG_FDDB_fromtrain1.pth',
                     help='ssd model')
-parser.add_argument('--batch_size', default=4, type=int,
+parser.add_argument('--batch_size', default=32, type=int,
                     help='Batch size for training')
 parser.add_argument('--resume', default=None, type=str,
                     help='Checkpoint state_dict file to resume training from')
 parser.add_argument('--start_iter', default=0, type=int,
                     help='Resume training at this iter')
-parser.add_argument('--num_workers', default=4, type=int,
+parser.add_argument('--num_workers', default=24, type=int,
                     help='Number of workers used in dataloading')
 parser.add_argument('--cuda', default=True, type=str2bool,
                     help='Use CUDA to train model')
-parser.add_argument('--lr', '--learning-rate', default=1e-4, type=float,
+parser.add_argument('--lr', '--learning-rate', default=1e-3, type=float,
                     help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float,
                     help='Momentum value for optim')
