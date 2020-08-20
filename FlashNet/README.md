@@ -9,6 +9,8 @@ Implentment several single stage lightweight face detetors.
 - [ ] FCOS
 - [x] CenterNet
 
+
+
 ## WIDER FACE results
 |      | Params|Flops(640X640)|Easy|Medium|Hard|
 |:----:|:-----:|:-----:|:----:|:-----:|:-----:|
@@ -18,7 +20,38 @@ Implentment several single stage lightweight face detetors.
 ## Demo
 ![1_Handshaking_Handshaking_1_579_bbox](images/1_Handshaking_Handshaking_1_579_bbox.jpg)
 
+## How to train
+1. Download [WIDER FACE](http://shuoyang1213.me/WIDERFACE/) dataset, e.g. place the images under this directory:
+```
+$/home/gyt/datasets/WIDERFACE/
+```
+2. Prepare your dataset in VOC format. e.g.
+```
+cd ./dataset/tools
+python wider2voc.py --dataset_root /home/gyt/datasets/WIDERFACE/ --minium_face_size 5
+```
+
+3. Train the model using WIDER FACE:
+```
+sh ./bash/train_flashnet.sh
+```
+
+## How to eval performance
+
 ## How to play
+1. Clone this repository. We will call the cloned directory as `$ROOT`.
+```
+git clone https://github.com/yongtaoge/Lightweight-Face-Detection-Playground.git
+```
+2. Config the running environment.
+```
+pip install requirements.txt
+```
+3. Compile the nms module.
+```
+sh compile.sh
+```
+4. Run demo.
 ```
 python models/centerface.py
 ```
