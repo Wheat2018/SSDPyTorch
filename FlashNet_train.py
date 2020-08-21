@@ -40,7 +40,7 @@ parser.add_argument('--resume', default=None, type=str,
                     help='Checkpoint state_dict file to resume training from')
 parser.add_argument('--start_iter', default=0, type=int,
                     help='Resume training at this iter')
-parser.add_argument('--num_workers', default=24, type=int,
+parser.add_argument('--num_workers', default=4, type=int,
                     help='Number of workers used in dataloading')
 parser.add_argument('--cuda', default=True, type=str2bool,
                     help='Use CUDA to train model')
@@ -85,6 +85,11 @@ class AugmentationCall:
         self.func = func
 
     def __call__(self, image, boxes, labels):
+        h, w, _ = image.shape
+        boxes[:, 0] *= w
+        boxes[:, 1] *= h
+        boxes[:, 2] *= w
+        boxes[:, 3] *= h
         image, targets = self.func(image, np.hstack((boxes, np.expand_dims(labels, axis=1))))
         image = image.transpose(1, 2, 0)
         image = image[:, :, (2, 1, 0)]
@@ -116,7 +121,6 @@ def train():
         dataset = None
         dataset_cfg = None
 
-    dataset.pull_item(0)
     flash_net = FlashNet(phase='train', cfg=cfg['net_cfg'])
     net = flash_net
 
