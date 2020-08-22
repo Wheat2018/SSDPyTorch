@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import torch.onnx.operators
 import math
 import os
-from FlashNet.facedet.models.common_ops import *
+from ...facedet.models.common_ops import *
 # from .backbones.mnasnet import _InvertedResidual, _BN_MOMENTUM
 # from .backbones.se_module import SELayer
 # from .cos_attn import Cos_Attn

@@ -28,12 +28,14 @@ class WIDER(data.Dataset):
                  root=WIDER_ROOT,
                  image_list_txt='wider_face_%s_bbx_gt.txt',
                  dataset='train',           # train or val or test or all
-                 image_enhancement_fn=None
+                 image_enhancement_fn=None,
+                 allow_empty_box=True
                  ):
         self.root = root
         self.image_list_txt = image_list_txt
         self.dataset = dataset
         self.image_enhancement_fn = image_enhancement_fn
+        self.allow_empty_box = allow_empty_box
 
         self.image_names = []
         self.image_rawBoxes = []
@@ -54,12 +56,15 @@ class WIDER(data.Dataset):
                 f = open(path.join(root, 'wider_face_split', image_list_txt % fold))
                 line = f.readline()
                 while line:
-                    self.image_names.append(line.replace("\n", ""))
+                    image_name = line.replace("\n", "")
                     line = f.readline()
                     num_of_boxes = int(line)
                     raw_boxes = []
                     if num_of_boxes == 0:       # In WIDER, images without boxes followed by '0 0 0 0 0 0 0 0 0 0' line.
                         f.readline()
+                        if not self.allow_empty_box:
+                            line = f.readline()
+                            continue
                     else:
                         for i in range(num_of_boxes):
                             line = f.readline()
@@ -69,8 +74,9 @@ class WIDER(data.Dataset):
                                        float(box_ele[0]) + float(box_ele[2]),
                                        float(box_ele[1]) + float(box_ele[3])]
                             raw_boxes.append(raw_box)
-                    self.image_rawBoxes.append(raw_boxes)
                     line = f.readline()
+                    self.image_names.append(image_name)
+                    self.image_rawBoxes.append(raw_boxes)
             end_index = len(self.image_names)
             self.range_of_each_fold[fold] = [start_index, end_index]
         self.image_preBoxes = [torch.Tensor() for i in range(len(self.image_names))]

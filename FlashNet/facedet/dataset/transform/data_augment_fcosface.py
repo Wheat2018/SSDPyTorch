@@ -1,5 +1,5 @@
 from .img_tranforms import *
-from FlashNet.facedet.utils.bbox.fcosface_target import FCOSFaceTargetGenerator
+from ....facedet.utils.bbox.fcosface_target import FCOSFaceTargetGenerator
 import torch
 
 target_generator = FCOSFaceTargetGenerator(stages=3, stride=(8, 16, 32), valid_range=((16, 64), (64, 128), (128, 320)))

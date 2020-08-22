@@ -7,8 +7,8 @@ import os
 import sys
 sys.path.append(os.getcwd())
 import numpy as np
-from FlashNet.facedet.models.common_ops import *
-from FlashNet.facedet.utils.ops.nms.nms_wrapper import nms
+from ...facedet.models.common_ops import *
+from ...facedet.utils.ops.nms.nms_wrapper import nms
 import cv2
 
 __all__ = ['FCOSFace']

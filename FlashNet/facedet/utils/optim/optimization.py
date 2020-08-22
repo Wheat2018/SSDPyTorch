@@ -6,7 +6,6 @@ import math
 
 logger = logging.getLogger(__name__)
 
-
 class ConstantLRSchedule(LambdaLR):
     """ Constant learning rate schedule.
     """

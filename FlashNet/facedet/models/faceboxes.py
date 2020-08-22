@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from FlashNet.facedet.models.common_ops import *
+from ...facedet.models.common_ops import *
 
 class FaceBoxes(nn.Module):
 

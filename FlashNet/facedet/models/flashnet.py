@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torch.onnx.operators
 import math
 import os
-from FlashNet.facedet.models.common_ops import *
+from ...facedet.models.common_ops import *
 
 __all__ = ['FlashNet']
 class FlashNet(nn.Module):
@@ -151,7 +151,7 @@ class FlashNet(nn.Module):
             conf.append(self.cls_head[idx](t).permute(0, 2, 3, 1).contiguous())
             loc.append(self.box_head[idx](t).permute(0, 2, 3, 1).contiguous())
             if self.use_ldmk:
-                ldmk.append(self.ldmk_head[idx](t).permute(0, 2, 3, 1). contiguous())
+                ldmk.append(self.ldmk_head[idx](t).permute(0, 2, 3, 1).contiguous())
 
         loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)

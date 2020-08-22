@@ -6,14 +6,13 @@
 from dataset import *
 from matplotlib import pyplot as plt
 from FlashNet.facedet.models.flashnet import FlashNet
-import FlashNet.facedet.configs.flashnet_1024_2_anchor as fl_cfg
 from FlashNet.facedet.utils.anchor.prior_box import PriorBox
 from FlashNet.facedet.losses.multibox_loss import MultiBoxLoss
+from FlashNet.facedet.utils.bbox.box_utils import decode
+from mmcv import Config
 
 if torch.cuda.is_available():
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
-
-from FlashNet_train import preproc
 
 
 def detect(out, priors, variance, top_k=200, conf_thresh=0.1, nms_thresh=0.45):
@@ -59,21 +58,16 @@ def detect(out, priors, variance, top_k=200, conf_thresh=0.1, nms_thresh=0.45):
     return output
 
 
-cfg = {
-    'net_cfg': fl_cfg.net_cfg,
-    'anchor_cfg': fl_cfg.anchor_cfg,
-    'train_cfg': fl_cfg.train_cfg,
-    'test_cfg': fl_cfg.test_cfg
-}
-# cfg = Config.fromfile('./FlashNet/facedet/configs/flashnet_1024_2_anchor.py')
+cfg = Config.fromfile('./FlashNet/facedet/configs/flashnet_1024_2_anchor.py')
 
 rgb_means = (104, 117, 123)
 img_dim = cfg['train_cfg']['input_size']
 
 net = FlashNet(phase='test', cfg=cfg['net_cfg'])
+net.eval()
 
 # testset = WIDER(dataset='val', image_enhancement_fn=BaseTransform((0, 0), (104.0, 117.0, 123.0)))
-testset = FDDB(dataset='test', image_enhancement_fn=BaseTransform((0, 0), (104.0, 117.0, 123.0)))
+testset = FDDB(dataset='test', image_enhancement_fn=BaseTransform((-1, 1600), (104.0, 117.0, 123.0)))
 # testset = FDDB(dataset='test', image_enhancement_fn=AugmentationCall(preproc(img_dim, rgb_means)))
 
 load_weights(net, path.join(WEIGHT_ROOT, 'FlashNet_' + testset.name + '.pth'))
@@ -93,7 +87,7 @@ for img_id in range(len(testset)):
     # loss = loss_l + loss_c
     out = net(x)
     # priors = PriorBox(cfg['anchor_cfg']).forward()
-    priors = PriorBox(cfg['anchor_cfg'], image_size=(h, w), phase='test').forward()
+    priors = PriorBox(cfg['anchor_cfg'], image_size=x.shape[-2:], phase='test').forward()
 
     loss_l, loss_c = criterion(out, priors, torch.FloatTensor(gt_boxes).unsqueeze(0).cuda())
     loss = cfg['train_cfg']['loc_weight'] * loss_l + cfg['train_cfg']['cls_weight'] * loss_c

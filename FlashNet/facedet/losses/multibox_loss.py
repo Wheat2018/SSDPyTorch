@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from FlashNet.facedet.utils.bbox.box_utils import match, match_landmark, match_refined_conf, log_sum_exp, decode
+from ...facedet.utils.bbox.box_utils import match, match_landmark, match_refined_conf, log_sum_exp, decode
 from .losses import wing_loss
 GPU = False
 if torch.cuda.is_available():

@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from .gpu_nms import gpu_nms
+# from .gpu_nms import gpu_nms
 from .cpu_nms import cpu_nms
 from .cpu_soft_nms import cpu_soft_nms
 
@@ -24,8 +24,9 @@ def nms(dets, iou_thr, device_id=None):
     if dets_np.shape[0] == 0:
         inds = []
     else:
-        inds = (gpu_nms(dets_np, iou_thr, device_id=device_id)
-                if device_id is not None else cpu_nms(dets_np, iou_thr))
+        # inds = (gpu_nms(dets_np, iou_thr, device_id=device_id)
+        #         if device_id is not None else cpu_nms(dets_np, iou_thr))
+        inds = (cpu_nms(dets_np, iou_thr))
 
     if is_tensor:
         inds = dets.new_tensor(inds, dtype=torch.long)

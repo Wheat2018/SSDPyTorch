@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import random
-from FlashNet.facedet.utils.bbox.box_utils import matrix_iof
+from ....facedet.utils.bbox.box_utils import matrix_iof
 
 def crop(image, boxes, labels, img_dim):
     height, width, _ = image.shape

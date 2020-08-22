@@ -1,4 +1,4 @@
-from FlashNet.facedet.utils.bbox.fcos_target_old import FCOSTargetGenerator
+from ....facedet.utils.bbox.fcos_target_old import FCOSTargetGenerator
 import torch
 import numpy as np
 from .img_tranforms import *

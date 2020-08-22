@@ -2,7 +2,7 @@ from __future__ import print_function
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from FlashNet.facedet.utils.bbox.box_utils import match_focal_loss, log_sum_exp
+from ...facedet.utils.bbox.box_utils import match_focal_loss, log_sum_exp
 
 GPU = False
 if torch.cuda.is_available():

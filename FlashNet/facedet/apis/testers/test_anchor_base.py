@@ -9,16 +9,16 @@ import torch
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 import numpy as np
-from facedet.utils.anchor.prior_box import PriorBox
-from facedet.utils.ops.nms.nms_wrapper import nms
+from FlashNet.facedet.utils.anchor.prior_box import PriorBox
+from FlashNet.facedet.utils.ops.nms.nms_wrapper import nms
 import cv2
-from facedet.utils.bbox.box_utils import decode, decode_landmark, decode_ldmk
-from facedet.utils.misc import Timer
-from facedet.utils.bbox.fcos_target_old import FCOSTargetGenerator
-from facedet.utils.bbox.fcos_target_old import FCOSBoxConverter
+from FlashNet.facedet.utils.bbox.box_utils import decode, decode_landmark, decode_ldmk
+from FlashNet.facedet.utils.misc import Timer
+from FlashNet.facedet.utils.bbox.fcos_target_old import FCOSTargetGenerator
+from FlashNet.facedet.utils.bbox.fcos_target_old import FCOSBoxConverter
 from tensorboardX import SummaryWriter
 import os
-from facedet.utils.misc.checkpoint import *
+from FlashNet.facedet.utils.misc.checkpoint import *
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 writer = SummaryWriter('./test_log/')
@@ -26,9 +26,9 @@ writer = SummaryWriter('./test_log/')
 target_generator = FCOSTargetGenerator()
 parser = argparse.ArgumentParser(description='FaceBoxes')
 
-parser.add_argument('-m', '--trained_model', default='weights/RetinaNet/epoch_180.pth',
+parser.add_argument('-m', '--trained_model', default='../../../../weights/FlashNet_FDDB.pth',
                     type=str, help='Trained state_dict file path to open')
-parser.add_argument('--cfg_file', default='./configs/retinanet.py', type=str, help='model config file')
+parser.add_argument('--cfg_file', default='../../configs/flashnet_1024_2_anchor.py', type=str, help='model config file')
 parser.add_argument('--cuda', default=True, type=bool, help='Use cuda to train model')
 parser.add_argument('--cpu', default=False, type=bool, help='Use cpu nms')
 parser.add_argument('--dataset', default='WIDER_train_5', type=str, choices=['AFW', 'PASCAL', 'FDDB', 'WIDER',
@@ -144,7 +144,7 @@ if __name__ == '__main__':
     from mmcv import Config
     cfg = Config.fromfile(args.cfg_file)
     save_folder = os.path.join('./eval/', args.dataset, cfg['test_cfg']['save_folder'])
-    import models
+    import FlashNet.facedet.models as models
     net = models.__dict__[cfg['net_cfg']['net_name']](phase='test', cfg=cfg['net_cfg'])
     net = load_model(net, args.trained_model)
 

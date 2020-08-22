@@ -34,7 +34,7 @@ parser.add_argument('--dataset', default='WIDER', choices=['FDDB', 'WIDER'],
 #                     help='Dataset root directory path')
 parser.add_argument('--ssd_weight', default='SSDFace300_VGG_FDDB_fromtrain1.pth',
                     help='ssd model')
-parser.add_argument('--batch_size', default=32, type=int,
+parser.add_argument('--batch_size', default=2, type=int,
                     help='Batch size for training')
 parser.add_argument('--resume', default=None, type=str,
                     help='Checkpoint state_dict file to resume training from')
@@ -97,14 +97,7 @@ class AugmentationCall:
 
 
 def train():
-    import FlashNet.facedet.configs.flashnet_1024_2_anchor as fl_cfg
-    cfg = {
-        'net_cfg': fl_cfg.net_cfg,
-        'anchor_cfg': fl_cfg.anchor_cfg,
-        'train_cfg': fl_cfg.train_cfg,
-        'test_cfg': fl_cfg.test_cfg
-    }
-    # cfg = Config.fromfile('./FlashNet/facedet/configs/flashnet_1024_2_anchor.py')
+    cfg = Config.fromfile('./FlashNet/facedet/configs/flashnet_1024_2_anchor.py')
     rgb_means = (104, 117, 123)
     img_dim = cfg['train_cfg']['input_size']
 
@@ -114,7 +107,8 @@ def train():
         dataset_cfg = dataset.cfg
     elif args.dataset == 'WIDER':
         dataset = WIDER(dataset='train',
-                        image_enhancement_fn=AugmentationCall(preproc(img_dim, rgb_means)))
+                        image_enhancement_fn=AugmentationCall(preproc(img_dim, rgb_means)),
+                        allow_empty_box=False)  # FlashNet not allow training picture without gt box
         dataset_cfg = dataset.cfg
 
     else:

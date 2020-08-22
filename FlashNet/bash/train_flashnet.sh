@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-python facedet/apis/trainers/train_anchor_base.py --training_dataset /mnt/lustre/geyongtao/dataset/WIDER_ldmk --ngpu 1 --optimizer AdamW \
---cfg_file ./configs/flashnet_1024.py -b 4
+python facedet/apis/trainers/train_anchor_base.py --training_dataset /home/gyt/dataset/WIDER --ngpu 1 --optimizer AdamW \
+--cfg_file ./configs/flashnet_1024.py -b 4 --gpu_ids 0
 
 # srun --partition=Test --mpi=pmi2 --gres=gpu:1 -n1 --ntasks-per-node=1 \
 # --job-name=flash --kill-on-bad-exit=1 --cpus-per-task=10 \

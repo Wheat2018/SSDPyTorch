@@ -1,5 +1,5 @@
 from .img_tranforms import *
-from FlashNet.facedet.utils.bbox.centerface_target import CenterFaceTargetGenerator
+from ....facedet.utils.bbox.centerface_target import CenterFaceTargetGenerator
 import torch
 
 target_generator = CenterFaceTargetGenerator(stages=3, stride=(8, 16, 32), valid_range=((16, 64), (64, 128), (128, 320)))

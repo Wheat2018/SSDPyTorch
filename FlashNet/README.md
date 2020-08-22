@@ -4,6 +4,7 @@ Implentment several single stage lightweight face detetors.
 ## Anchor-Base methods
 - [ ] FaceBoxes
 - [ ] RetinaFace
+- [x] FlashNet
 
 ## Anchor-Free methods
 - [ ] FCOS
@@ -27,11 +28,13 @@ $/home/gyt/datasets/WIDERFACE/
 ```
 2. Prepare your dataset in VOC format. e.g.
 ```
-cd ./dataset/tools
-python wider2voc.py --dataset_root /home/gyt/datasets/WIDERFACE/ --minium_face_size 5
+python facedet/dataset/tools/wider2voc.py --dataset_root /home/gyt/datasets/WIDERFACE/ --minium_face_size 0
 ```
-
-3. Train the model using WIDER FACE:
+3. Compile the nms module.
+```
+sh bash/compile.sh
+```
+4. Train the model using WIDER FACE:
 ```
 sh ./bash/train_flashnet.sh
 ```
@@ -49,7 +52,7 @@ pip install requirements.txt
 ```
 3. Compile the nms module.
 ```
-sh compile.sh
+sh bash/compile.sh
 ```
 4. Run demo.
 ```

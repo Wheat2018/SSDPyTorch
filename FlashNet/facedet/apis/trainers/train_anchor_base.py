@@ -27,7 +27,8 @@ from facedet.dataset import data_prefetcher
 import logging
 from datetime import datetime
 
-logging.basicConfig(filename='facedet/logs/train_{}.log'.format(datetime.now().strftime('%Y_%m_%d_%H_%M_%S')), level=logging.DEBUG)
+os.makedirs("/work_dir/logs/", exist_ok=True)
+logging.basicConfig(filename='work_dir/logs/train_{}.log'.format(datetime.now().strftime('%Y_%m_%d_%H_%M_%S')), level=logging.DEBUG)
 
 torch.cuda.empty_cache()
 torch.multiprocessing.set_sharing_strategy('file_system')
@@ -50,7 +51,7 @@ parser.add_argument('--resume_epoch', default=0, type=int, help='resume iter for
 parser.add_argument('-max', '--max_epoch', default=300, type=int, help='max epoch for retraining')
 parser.add_argument('--weight_decay', default=5e-4, type=float, help='Weight decay for SGD')
 parser.add_argument('--gamma', default=0.1, type=float, help='Gamma update for SGD')
-parser.add_argument('--save_folder', default='./weights/RetinaNet/',
+parser.add_argument('--save_folder', default='.work_dir/weights/RetinaNet/',
                     help='Location to save checkpoint models')
 parser.add_argument('--frozen', default=False, type=bool, help='Froze some layers to finetune model')
 parser.add_argument('--optimizer', type=str, default='AdamW', choices=['SGD', 'AdamW'])
