@@ -168,7 +168,7 @@ class FDDB(data.Dataset):
             else:
                 image, boxes, classes = self.image_enhancement_fn(image, boxes_classes[:, :4], boxes_classes[:, 4])
                 # to rgb
-                image = image[:, :, (2, 1, 0)]
+                # image = image[:, :, (2, 1, 0)]
                 boxes_classes = np.hstack((boxes, np.expand_dims(classes, axis=1)))
         return torch.from_numpy(image).permute(2, 0, 1), boxes_classes, h, w
 

@@ -26,12 +26,12 @@ writer = SummaryWriter('./test_log/')
 target_generator = FCOSTargetGenerator()
 parser = argparse.ArgumentParser(description='FaceBoxes')
 
-parser.add_argument('-m', '--trained_model', default='../../../../weights/FlashNet_FDDB.pth',
+parser.add_argument('-m', '--trained_model', default='../../../../weights/FlashNet_WIDER.pth',
                     type=str, help='Trained state_dict file path to open')
 parser.add_argument('--cfg_file', default='../../configs/flashnet_1024_2_anchor.py', type=str, help='model config file')
 parser.add_argument('--cuda', default=True, type=bool, help='Use cuda to train model')
 parser.add_argument('--cpu', default=False, type=bool, help='Use cpu nms')
-parser.add_argument('--dataset', default='WIDER_train_5', type=str, choices=['AFW', 'PASCAL', 'FDDB', 'WIDER',
+parser.add_argument('--dataset', default='WIDER', type=str, choices=['AFW', 'PASCAL', 'FDDB', 'WIDER',
                                                                                'WIDER_train_5','WIDER_test'], help='dataset')
 parser.add_argument('--confidence_threshold', default=0.05, type=float, help='confidence_threshold')
 parser.add_argument('--top_k', default=5000, type=int, help='top_k')
@@ -170,11 +170,11 @@ if __name__ == '__main__':
     # testing dataset
 
     if 'WIDER' in args.dataset:
-        testset_folder = os.path.join('/mnt/lustre/geyongtao/dataset', args.dataset, 'JPEGImages/')
-        testset_list = os.path.join('/mnt/lustre/geyongtao/dataset', args.dataset, 'ImageSets/Main/test.txt')
+        testset_folder = os.path.join('../../../../data', args.dataset, 'JPEGImages/')
+        testset_list = os.path.join('../../../../data', args.dataset, 'ImageSets/Main/test.txt')
     elif args.dataset == 'FDDB' or args.dataset == 'AFW' or args.dataset == 'PASCAL':
-        testset_folder = os.path.join('/mnt/lustre/geyongtao/dataset', args.dataset, 'images/')
-        testset_list = os.path.join('/mnt/lustre/geyongtao/dataset', args.dataset, 'img_list.txt')
+        testset_folder = os.path.join('../../../../data', args.dataset, 'images/')
+        testset_list = os.path.join('../../../../data', args.dataset, 'img_list.txt')
 
 
     with open(testset_list, 'r') as fr:
@@ -282,6 +282,7 @@ if __name__ == '__main__':
                 boxes = boxes / resize
             boxes = boxes.data.cpu().numpy()
 
+        conf = conf.data.squeeze(0)
         #         import pdb
         #         pdb.set_trace()
         if cfg['net_cfg']['num_classes'] == 1 and cfg['test_cfg']['is_anchor_base'] == False:
@@ -323,6 +324,29 @@ if __name__ == '__main__':
 
         # save dets
         if "WIDER" in args.dataset:
+            image = cv2.imread(image_path, cv2.IMREAD_COLOR)
+            color = [0, 0, 255]
+            for n in range(dets.shape[0]):
+                score = dets[n, -1]
+                if score < 0.4:
+                    continue
+                display_txt = '%.2f' % score
+                pt = (torch.Tensor(dets[n, :-1])).type(torch.int32).cpu().numpy()
+
+                cv2.rectangle(image, (pt[0], pt[1]), (pt[2], pt[3]), color, 2)
+                # cv2.fillPoly(image,
+                #              np.array([[[pt[0], pt[1]], [pt[0] + 25, pt[1]], [pt[0] + 25, pt[1] + 15],
+                #                         [pt[0], pt[1] + 15]]]),
+                #              color)
+                # inverse_color = [255 - x for x in color]
+                # cv2.putText(image, display_txt, (int(pt[0]), int(pt[1]) + 10),
+                #             cv2.FONT_HERSHEY_SIMPLEX, 0.3, inverse_color, lineType=cv2.LINE_AA)
+            cv2.imshow('test', image)
+            k = cv2.waitKey(0)
+            if k == 27:
+                break
+
+            continue
             if cfg['train_cfg']['use_landmark']:
                 draw_landmark = True
             else:

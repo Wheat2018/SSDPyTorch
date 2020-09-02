@@ -15,7 +15,7 @@ if torch.cuda.is_available():
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 
-def detect(out, priors, variance, top_k=200, conf_thresh=0.1, nms_thresh=0.45):
+def detect(out, priors, variance, top_k=5000, conf_thresh=0.4, nms_thresh=0.3):
 
     loc_data, conf_data = out
     """
@@ -66,34 +66,35 @@ img_dim = cfg['train_cfg']['input_size']
 net = FlashNet(phase='test', cfg=cfg['net_cfg'])
 net.eval()
 
-# testset = WIDER(dataset='val', image_enhancement_fn=BaseTransform((0, 0), (104.0, 117.0, 123.0)))
-testset = FDDB(dataset='test', image_enhancement_fn=BaseTransform((-1, 1600), (104.0, 117.0, 123.0)))
+testset = WIDER(dataset='test', image_enhancement_fn=BaseTransform((0, 1600), (104.0, 117.0, 123.0)))
+# testset = FDDB(dataset='test', image_enhancement_fn=BaseTransform((-1, 800), (104.0, 117.0, 123.0)))
 # testset = FDDB(dataset='test', image_enhancement_fn=AugmentationCall(preproc(img_dim, rgb_means)))
 
-load_weights(net, path.join(WEIGHT_ROOT, 'FlashNet_' + testset.name + '.pth'))
+# load_weights(net, path.join(WEIGHT_ROOT, 'FlashNet_' + testset.name + '_2000.pth'))
+load_weights(net, path.join(WEIGHT_ROOT, 'FlashNet_' + 'WIDER' + '.pth'))
 # net.auto_load_weights(path.join(PRETRAIN_ROOT, 'vgg16_reducedfc.pth'))
 criterion = MultiBoxLoss(2, 0.35, True, 0, True, 3, 0.35, False, cfg['train_cfg']['use_ldmk'])
 
 for img_id in range(len(testset)):
     image = testset.pull_image(img_id)
+
     x, gt_boxes, h, w = testset.pull_item(img_id)
 
     t1 = time.time()
     x = x.unsqueeze(0)
     if torch.cuda.is_available():
         x = x.cuda()
-    # out = net(x)
-    # loss_l, loss_c = criterion(out, [torch.Tensor(gt_boxes)])
-    # loss = loss_l + loss_c
-    out = net(x)
+
+    with torch.no_grad():
+        out = net(x)
     # priors = PriorBox(cfg['anchor_cfg']).forward()
     priors = PriorBox(cfg['anchor_cfg'], image_size=x.shape[-2:], phase='test').forward()
 
-    loss_l, loss_c = criterion(out, priors, torch.FloatTensor(gt_boxes).unsqueeze(0).cuda())
-    loss = cfg['train_cfg']['loc_weight'] * loss_l + cfg['train_cfg']['cls_weight'] * loss_c
-    print('iter ' + repr(img_id) +
-          '\t|| loc/conf/all: %.4f / %.4f / %.4f ||' % (loss_l.item(), loss_c.item(), loss.item()),
-          end=' ')
+    # loss_l, loss_c = criterion(out, priors, torch.FloatTensor(gt_boxes).unsqueeze(0).cuda())
+    # loss = cfg['train_cfg']['loc_weight'] * loss_l + cfg['train_cfg']['cls_weight'] * loss_c
+    # print('iter ' + repr(img_id) +
+    #       '\t|| loc/conf/all: %.4f / %.4f / %.4f ||' % (loss_l.item(), loss_c.item(), loss.item()),
+    #       end=' ')
 
     y = detect(out, priors, cfg['anchor_cfg']['variance'])
     detection = y[0]

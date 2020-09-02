@@ -9,26 +9,26 @@ sys.path.append(os.getcwd())
 
 import torch
 import torch.optim as optim
-from facedet.utils.optim import AdamW
+from FlashNet.facedet.utils.optim import AdamW
 import torch.backends.cudnn as cudnn
 import argparse
 from torch.autograd import Variable
 import torch.utils.data as data
 
-from facedet.dataset import LandmarkAnnotationTransform, AnnotationTransform, VOCDetection, \
+from FlashNet.facedet.dataset import LandmarkAnnotationTransform, AnnotationTransform, VOCDetection, \
     detection_collate, preproc_ldmk, preproc, SSDAugmentation
-from facedet.losses import MultiBoxLoss
+from FlashNet.facedet.losses import MultiBoxLoss
 # from losses import FocalLoss
-from facedet.utils.anchor.prior_box import PriorBox
+from FlashNet.facedet.utils.anchor.prior_box import PriorBox
 import time
 import math
-from facedet.utils.misc import add_flops_counting_methods, flops_to_string, get_model_parameters_number
-from facedet.dataset import data_prefetcher
+from FlashNet.facedet.utils.misc import add_flops_counting_methods, flops_to_string, get_model_parameters_number
+from FlashNet.facedet.dataset import data_prefetcher
 import logging
 from datetime import datetime
 
-os.makedirs("/work_dir/logs/", exist_ok=True)
-logging.basicConfig(filename='work_dir/logs/train_{}.log'.format(datetime.now().strftime('%Y_%m_%d_%H_%M_%S')), level=logging.DEBUG)
+os.makedirs("./work_dir/logs/", exist_ok=True)
+logging.basicConfig(filename='./work_dir/logs/train_{}.log'.format(datetime.now().strftime('%Y_%m_%d_%H_%M_%S')), level=logging.DEBUG)
 
 torch.cuda.empty_cache()
 torch.multiprocessing.set_sharing_strategy('file_system')
@@ -37,13 +37,13 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 # resource.setrlimit(resource.RLIMIT_NOFILE, (2048, rlimit[1]))
 
 parser = argparse.ArgumentParser(description='Train anchor-based face detectors')
-parser.add_argument('--cfg_file', default='./configs/mdface.py', type=str,
+parser.add_argument('--cfg_file', default='../../configs/flashnet_1024_2_anchor.py', type=str,
                     help='model config file')
-parser.add_argument('--training_dataset', default='/mnt/lustre/geyongtao/dataset/WiderFace', help='Training dataset directory')
-parser.add_argument('-b', '--batch_size', default=32, type=int, help='Batch size for training')
-parser.add_argument('--num_workers', default=24, type=int, help='Number of workers used in dataloading')
+parser.add_argument('--training_dataset', default='../../../../data/WIDER', help='Training dataset directory')
+parser.add_argument('-b', '--batch_size', default=4, type=int, help='Batch size for training')
+parser.add_argument('--num_workers', default=4, type=int, help='Number of workers used in dataloading')
 parser.add_argument('--cuda', default=True, type=bool, help='Use cuda to train model')
-parser.add_argument('--ngpu', default=2, type=int, help='gpus')
+parser.add_argument('--ngpu', default=1, type=int, help='gpus')
 parser.add_argument('--lr', '--learning-rate', default=1e-3, type=float, help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
 parser.add_argument('--resume_net', default=None, help='resume net for retraining')
@@ -51,97 +51,97 @@ parser.add_argument('--resume_epoch', default=0, type=int, help='resume iter for
 parser.add_argument('-max', '--max_epoch', default=300, type=int, help='max epoch for retraining')
 parser.add_argument('--weight_decay', default=5e-4, type=float, help='Weight decay for SGD')
 parser.add_argument('--gamma', default=0.1, type=float, help='Gamma update for SGD')
-parser.add_argument('--save_folder', default='.work_dir/weights/RetinaNet/',
+parser.add_argument('--save_folder', default='../../../../weights',
                     help='Location to save checkpoint models')
 parser.add_argument('--frozen', default=False, type=bool, help='Froze some layers to finetune model')
 parser.add_argument('--optimizer', type=str, default='AdamW', choices=['SGD', 'AdamW'])
-parser.add_argument('--gpu_ids', type=str, default=None)
+parser.add_argument('--gpu_ids', type=str, default='0')
 args = parser.parse_args()
 
-if not os.path.exists(args.save_folder):
-    os.makedirs(args.save_folder)
-
-from mmcv import Config
-
-cfg = Config.fromfile(args.cfg_file)
-os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids
-args.save_folder = os.path.join(cfg['train_cfg']['save_folder'], args.optimizer)
-if not os.path.exists(args.save_folder):
-    os.makedirs(args.save_folder)
-import facedet.models
-
-net = facedet.models.__dict__[cfg['net_cfg']['net_name']](phase='train', cfg=cfg['net_cfg'])
-
-rgb_means = (104, 117, 123)
-img_dim = cfg['train_cfg']['input_size']
-
-batch_size = args.batch_size
-weight_decay = args.weight_decay
-gamma = args.gamma
-momentum = args.momentum
-
-print("Printing net...")
-# print(net)
-# img_dim = 1024
-input_size = (1, 3, img_dim, img_dim)
-
-img = torch.FloatTensor(input_size[0], input_size[1], input_size[2], input_size[3])
-net = add_flops_counting_methods(net)
-net.start_flops_count()
-feat = net(img)
-flops = net.compute_average_flops_cost()
-print('Net Flops:  {}'.format(flops_to_string(flops)))
-print('Net Params: ' + get_model_parameters_number(net))
-
-if args.resume_net is not None:
-    print('Loading resume network...')
-    state_dict = torch.load(args.resume_net)
-    # create new OrderedDict that does not contain `module.`
-    from collections import OrderedDict
-
-    new_state_dict = OrderedDict()
-    for k, v in state_dict.items():
-        head = k[:7]
-        if head == 'module.':
-            name = k[7:]  # remove `module.`
-        else:
-            name = k
-        new_state_dict[name] = v
-    net.load_state_dict(new_state_dict, strict=False)
-
-
-if args.ngpu > 1:
-    net = torch.nn.DataParallel(net, device_ids=list(range(args.ngpu)))
-
-if args.cuda:
-    net.cuda()
-    cudnn.benchmark = True
-
-if args.optimizer == 'SGD':
-    optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-elif args.optimizer == 'AdamW':
-    optimizer = AdamW(net.parameters(),
-                      lr=args.lr,
-                      betas=(0.9, 0.995),
-                      eps=1e-9,
-                      weight_decay=1e-5,
-                      correct_bias=False)
-else:
-    raise NotImplementedError('Please use SGD or Adamw as optimizer')
-
-if cfg['net_cfg']['num_classes'] == 2:
-    criterion = MultiBoxLoss(2, 0.35, True, 0, True, 3, 0.35, False, cfg['train_cfg']['use_ldmk'])
-else:
-    criterion = FocalLoss(num_classes=1, overlap_thresh=0.35)
-
-priorbox = PriorBox(cfg['anchor_cfg'])
-
-with torch.no_grad():
-    priors = priorbox.forward()
-    if args.cuda:
-        priors = priors.cuda()
 
 def train():
+    if not os.path.exists(args.save_folder):
+        os.makedirs(args.save_folder)
+
+    from mmcv import Config
+
+    cfg = Config.fromfile(args.cfg_file)
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids
+    args.save_folder = os.path.join(cfg['train_cfg']['save_folder'], args.optimizer)
+    if not os.path.exists(args.save_folder):
+        os.makedirs(args.save_folder)
+    import FlashNet.facedet.models as models
+
+    net = models.__dict__[cfg['net_cfg']['net_name']](phase='train', cfg=cfg['net_cfg'])
+
+    rgb_means = (104, 117, 123)
+    img_dim = cfg['train_cfg']['input_size']
+
+    batch_size = args.batch_size
+    weight_decay = args.weight_decay
+    gamma = args.gamma
+    momentum = args.momentum
+
+    print("Printing net...")
+    # print(net)
+    # img_dim = 1024
+    input_size = (1, 3, img_dim, img_dim)
+
+    img = torch.FloatTensor(input_size[0], input_size[1], input_size[2], input_size[3])
+    net = add_flops_counting_methods(net)
+    net.start_flops_count()
+    feat = net(img)
+    flops = net.compute_average_flops_cost()
+    print('Net Flops:  {}'.format(flops_to_string(flops)))
+    print('Net Params: ' + get_model_parameters_number(net))
+
+    if args.resume_net is not None:
+        print('Loading resume network...')
+        state_dict = torch.load(args.resume_net)
+        # create new OrderedDict that does not contain `module.`
+        from collections import OrderedDict
+
+        new_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            head = k[:7]
+            if head == 'module.':
+                name = k[7:]  # remove `module.`
+            else:
+                name = k
+            new_state_dict[name] = v
+        net.load_state_dict(new_state_dict, strict=False)
+
+    if args.ngpu > 1:
+        net = torch.nn.DataParallel(net, device_ids=list(range(args.ngpu)))
+
+    if args.cuda:
+        net.cuda()
+        cudnn.benchmark = True
+
+    if args.optimizer == 'SGD':
+        optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+    elif args.optimizer == 'AdamW':
+        optimizer = AdamW(net.parameters(),
+                          lr=args.lr,
+                          betas=(0.9, 0.995),
+                          eps=1e-9,
+                          weight_decay=1e-5,
+                          correct_bias=False)
+    else:
+        raise NotImplementedError('Please use SGD or Adamw as optimizer')
+
+    if cfg['net_cfg']['num_classes'] == 2:
+        criterion = MultiBoxLoss(2, 0.35, True, 0, True, 3, 0.35, False, cfg['train_cfg']['use_ldmk'])
+    else:
+        criterion = FocalLoss(num_classes=1, overlap_thresh=0.35)
+
+    priorbox = PriorBox(cfg['anchor_cfg'])
+
+    with torch.no_grad():
+        priors = priorbox.forward()
+        if args.cuda:
+            priors = priors.cuda()
+
     net.train()
     epoch = 0 + args.resume_epoch
     print('Loading Dataset...')

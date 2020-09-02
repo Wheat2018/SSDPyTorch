@@ -13,14 +13,16 @@ if torch.cuda.is_available():
 net_cfg = {
     'net_name': 'CenterFace',
     'num_classes': 1,
-    'use_ldmk': False
+    'use_ldmk': False,
+    'ldmk_reg_type': None
 }
 
 net = CenterFace(phase='test', cfg=net_cfg)
 net = load_model(net, "FlashNet/facedet/checkpoints/CenterFace.pth")
 net.eval()
 
-pre_solve = BaseTransform((-1, 600), (104.0, 117.0, 123.0))
+im_height = 1600
+pre_solve = BaseTransform((-1, im_height), (104.0, 117.0, 123.0))
 
 use_pylon = False
 if use_pylon:
@@ -46,20 +48,19 @@ while True:
         success, image = camera.read()
 
     x, _, _ = pre_solve(image)
-    x = x[:, :, (2, 1, 0)]
+    # x = x[:, :, (2, 1, 0)]
 
     x = torch.from_numpy(x).permute(2, 0, 1)
     x = x.unsqueeze(0)
     if torch.cuda.is_available():
         x = x.cuda()
         net = net.cuda()
-    wh, conf, _ = net(x)  # forward pass
-    detection = net.post_process(wh,
-                                 conf,
+    with torch.no_grad():
+        forward = net(x)  # forward pass
+    detection = net.post_process(forward,
                                  x.shape[-2],
                                  x.shape[-1],
-                                 image.shape[0],
-                                 image.shape[1],
+                                 im_height / image.shape[0],
                                  confidence_threshold=0.4)
 
     color = [0, 255, 0]

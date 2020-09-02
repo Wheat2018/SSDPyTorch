@@ -29,6 +29,7 @@ train_cfg = {
     'distillation_weight': 8.0,
     'mimic_weight': 50.0,
     'use_ldmk': False,
+    'use_landmark': False,
     'aug_type': 'FaceBoxes',
     'lr_steps': [200, 250],  # step epoch for learning rate decreasing
     'save_folder': './weights/FlashNet_1024_2_anchor',

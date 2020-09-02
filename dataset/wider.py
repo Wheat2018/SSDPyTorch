@@ -62,21 +62,21 @@ class WIDER(data.Dataset):
                     raw_boxes = []
                     if num_of_boxes == 0:       # In WIDER, images without boxes followed by '0 0 0 0 0 0 0 0 0 0' line.
                         f.readline()
-                        if not self.allow_empty_box:
-                            line = f.readline()
-                            continue
                     else:
                         for i in range(num_of_boxes):
                             line = f.readline()
                             box_ele = line.split(' ')
+                            if float(box_ele[2]) <= 0 and float(box_ele[3]) <= 0:
+                                continue
                             raw_box = [float(box_ele[0]),
                                        float(box_ele[1]),
                                        float(box_ele[0]) + float(box_ele[2]),
                                        float(box_ele[1]) + float(box_ele[3])]
                             raw_boxes.append(raw_box)
                     line = f.readline()
-                    self.image_names.append(image_name)
-                    self.image_rawBoxes.append(raw_boxes)
+                    if self.allow_empty_box or len(raw_boxes) > 0:
+                        self.image_names.append(image_name)
+                        self.image_rawBoxes.append(raw_boxes)
             end_index = len(self.image_names)
             self.range_of_each_fold[fold] = [start_index, end_index]
         self.image_preBoxes = [torch.Tensor() for i in range(len(self.image_names))]
@@ -157,7 +157,7 @@ class WIDER(data.Dataset):
             else:
                 image, boxes, classes = self.image_enhancement_fn(image, boxes_classes[:, :4], boxes_classes[:, 4])
                 # to rgb
-                image = image[:, :, (2, 1, 0)]
+                # image = image[:, :, (2, 1, 0)]
                 boxes_classes = np.hstack((boxes, np.expand_dims(classes, axis=1)))
         return torch.from_numpy(image).permute(2, 0, 1), boxes_classes, h, w
 

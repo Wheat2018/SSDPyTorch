@@ -11,10 +11,10 @@ if torch.cuda.is_available():
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 net = SSDType(VGG(3))
-# testset = WIDER(dataset='val', image_enhancement_fn=BaseTransform(net.size, (104.0, 117.0, 123.0)))
-testset = FDDB(dataset='test',
-               image_enhancement_fn=BaseTransform(net.size, (104.0, 117.0, 123.0)))
-net.auto_load_weights(path.join(WEIGHT_ROOT, net.name + '_' + testset.name + '.pth'))
+testset = WIDER(dataset='val', image_enhancement_fn=BaseTransform(net.size, (104.0, 117.0, 123.0)))
+# testset = FDDB(dataset='test',
+#                image_enhancement_fn=BaseTransform(net.size, (104.0, 117.0, 123.0)))
+net.auto_load_weights(path.join(WEIGHT_ROOT, net.name + '_' + 'WIDER' + '.pth'))
 # net.auto_load_weights(path.join(PRETRAIN_ROOT, 'vgg16_reducedfc.pth'))
 criterion = SSDLossType(0.5, 3, do_neg_mining=True, variance=net.variance)
 
@@ -29,7 +29,8 @@ for img_id in range(len(testset)):
     # out = net(x)
     # loss_l, loss_c = criterion(out, [torch.Tensor(gt_boxes)])
     # loss = loss_l + loss_c
-    y = net.detect(x, conf_thresh=0.4)
+    with torch.no_grad():
+        y = net.detect(x, conf_thresh=0.4)
     detection = y[0]
     t2 = time.time()
     # print(str(img_id), '\tloss: %.4f %.4f %.4f %.4f sec' % (float(loss_l), float(loss_c), float(loss), t2-t1))

@@ -6,7 +6,7 @@ from xml.dom.minidom import Document
 import argparse
 
 parser = argparse.ArgumentParser(description='Generate voc format dataset')
-parser.add_argument('--dataset_root', default="/home/gyt/dataset/WIDER_challenge", help='dataset directory')
+parser.add_argument('--dataset_root', default="../../../../data/WIDER", help='dataset directory')
 parser.add_argument('--minium_face_size', default=-1, type=int, help='filter the small faces whose scales are blow the mimium_face_size')
 args = parser.parse_args()
 
@@ -52,6 +52,11 @@ def convertimgset(img_set="train"):
             sys.stdout.flush()
             imgpath = imgdir + "/" + filename
             img = cv2.imread(imgpath)
+            # if img is None:
+            #     sys.stdout.write("\r" + str(index) + ":" + filename + "\t\t\t")
+            #     sys.stdout.flush()
+            #     break
+
             if not img.data:
                 break;
 
@@ -67,6 +72,8 @@ def convertimgset(img_set="train"):
             #                              value=0)
             showimg = saveimg.copy()
             numbbox = int(gtfile.readline())
+            if numbbox == 0:
+                gtfile.readline()
             bboxes = []
             for i in range(numbbox):
                 line = gtfile.readline()
@@ -100,7 +107,7 @@ def convertimgset(img_set="train"):
                 os.makedirs(path)
             if len(bboxes) == 0:
                 print("no face:", filename)
-                # continue
+                continue
             cv2.imwrite(imagesdir + "/" + filename, saveimg)
             # generate filelist
             imgfilepath = filename[:-4]
