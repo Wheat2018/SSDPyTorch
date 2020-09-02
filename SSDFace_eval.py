@@ -23,7 +23,8 @@ for idx in range(len(dataset)):
     x = x.unsqueeze(0)
     if torch.cuda.is_available():
         x = x.cuda()
-    y = net.detect(x, conf_thresh=0.1)
+    with torch.no_grad():
+        y = net.detect(x, conf_thresh=0.1)
     detection = y[0]
     dataset.sign_item(idx, detection, h, w)
     if idx % 10 == 0:
