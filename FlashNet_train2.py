@@ -169,7 +169,8 @@ def train():
             # create batch iterator
             train_loader = data.DataLoader(dataset, batch_size, shuffle=True, \
                                            num_workers=args.num_workers, collate_fn=detection_collate, drop_last=True)
-            prefetcher = data_prefetcher(train_loader)
+            # prefetcher = data_prefetcher(train_loader)
+            batch_iter = iter(train_loader)
 
             # batch_iterator = iter(data.DataLoader(dataset, batch_size, shuffle=True, num_workers=args.num_workers, collate_fn=detection_collate, drop_last=True))
             if (epoch % 5 == 0 and epoch > 0) or (epoch % 5 == 0 and epoch > 200):
@@ -183,7 +184,8 @@ def train():
 
         # load train data
         # images, targets = next(batch_iterator)
-        images, targets = prefetcher.next()
+        # images, targets = prefetcher.next()
+        images, targets = next(batch_iter)
         if images is None:
             continue
 
