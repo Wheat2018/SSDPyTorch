@@ -23,6 +23,7 @@ from FlashNet.facedet.utils.anchor.prior_box import PriorBox
 from FlashNet.facedet.utils.misc import add_flops_counting_methods, flops_to_string, get_model_parameters_number
 from FlashNet.facedet.dataset import data_prefetcher
 from FlashNet.facedet.models.flashnet import FlashNet
+from FlashNet.facedet.utils.anchor.prior_box import PriorBox
 import time
 import math
 import logging
