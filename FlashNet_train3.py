@@ -109,45 +109,47 @@ def train():
     else:
         raise NotImplementedError('Please use SGD or Adamw as optimizer')
 
+    with torch.no_grad():
+        priors = PriorBox(cfg['anchor_cfg']).forward()
+        if args.cuda:
+            priors = priors.cuda()
+    criterion = MultiBoxLoss(2, 0.35, True, 0, True, 3, 0.35, False, cfg['train_cfg']['use_ldmk'])
+
     net.train()
-    epoch = args.resume_epoch
-    print('Loading Dataset...')
+    loc_loss = 0
+    conf_loss = 0
+    epoch = 0
+    print('Loading the dataset...')
 
-    # dataset = VOCDetection(args.training_dataset, preproc(img_dim, rgb_means), AnnotationTransform())
+    epoch_size = len(dataset) // args.batch_size
+    print('Training SSD on:', dataset.name)
+    print('Using the specified args:')
+    print(args)
 
-    batch_size = args.batch_size
-
-    epoch_size = math.ceil(len(dataset) / batch_size)
-    max_iter = int(args.max_epoch) * epoch_size
-
-    stepvalues = (200 * epoch_size, 250 * epoch_size)
     step_index = 0
+    data_loader = data.DataLoader(dataset, args.batch_size,
+                                  num_workers=args.num_workers,
+                                  shuffle=True, collate_fn=detection_collate,
+                                  pin_memory=True)
+    # create batch iterator
+    batch_iterator = iter(data_loader)
 
-    if args.resume_epoch > 0:
-        start_iter = epoch * epoch_size
-    else:
-        start_iter = 0
-
-    for iteration in range(start_iter, max_iter):
+    for iteration in range(0, 120000):
         if iteration % epoch_size == 0:
-            # create batch iterator
-            train_loader = data.DataLoader(dataset, batch_size, shuffle=True, \
-                                           num_workers=args.num_workers, collate_fn=detection_collate, drop_last=True)
-            prefetcher = data_prefetcher(train_loader)
 
             # batch_iterator = iter(data.DataLoader(dataset, batch_size, shuffle=True, num_workers=args.num_workers, collate_fn=detection_collate, drop_last=True))
             if (epoch % 5 == 0 and epoch > 0) or (epoch % 5 == 0 and epoch > 200):
                 torch.save(net.state_dict(), args.save_folder + 'epoch_' + repr(epoch) + '.pth')
             epoch += 1
 
-        load_t0 = time.time()
-        if iteration in stepvalues:
-            step_index += 1
-        lr = adjust_learning_rate(optimizer, args.gamma, epoch, step_index, iteration, epoch_size)
+        try:
+            images, targets = next(batch_iterator)
+        except StopIteration as e:
+            batch_iterator = iter(data_loader)
+            images, targets = next(batch_iterator)
 
         # load train data
         # images, targets = next(batch_iterator)
-        images, targets = prefetcher.next()
         if images is None:
             continue
 
