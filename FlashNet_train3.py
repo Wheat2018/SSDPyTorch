@@ -60,15 +60,9 @@ args = parser.parse_args()
 
 
 def train():
-    if not os.path.exists(args.save_folder):
-        os.makedirs(args.save_folder)
-
     from mmcv import Config
 
     cfg = Config.fromfile(args.cfg_file)
-    args.save_folder = os.path.join(cfg['train_cfg']['save_folder'], args.optimizer)
-    if not os.path.exists(args.save_folder):
-        os.makedirs(args.save_folder)
     import FlashNet.facedet.models as models
 
     net = models.__dict__[cfg['net_cfg']['net_name']](phase='train', cfg=cfg['net_cfg'])
@@ -77,25 +71,6 @@ def train():
     img_dim = cfg['train_cfg']['input_size']
 
     batch_size = args.batch_size
-
-    if args.resume_net is not None:
-        print('Loading resume network...')
-        state_dict = torch.load(args.resume_net)
-        # create new OrderedDict that does not contain `module.`
-        from collections import OrderedDict
-
-        new_state_dict = OrderedDict()
-        for k, v in state_dict.items():
-            head = k[:7]
-            if head == 'module.':
-                name = k[7:]  # remove `module.`
-            else:
-                name = k
-            new_state_dict[name] = v
-        net.load_state_dict(new_state_dict, strict=False)
-
-    if args.ngpu > 1:
-        net = torch.nn.DataParallel(net, device_ids=list(range(args.ngpu)))
 
     if args.cuda:
         net.cuda()
@@ -112,15 +87,6 @@ def train():
                           correct_bias=False)
     else:
         raise NotImplementedError('Please use SGD or Adamw as optimizer')
-
-    criterion = MultiBoxLoss(2, 0.35, True, 0, True, 3, 0.35, False, cfg['train_cfg']['use_ldmk'])
-
-    priorbox = PriorBox(cfg['anchor_cfg'])
-
-    with torch.no_grad():
-        priors = priorbox.forward()
-        if args.cuda:
-            priors = priors.cuda()
 
     net.train()
     epoch = args.resume_epoch
