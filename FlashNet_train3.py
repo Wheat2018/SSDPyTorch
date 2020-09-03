@@ -66,7 +66,6 @@ def train():
     from mmcv import Config
 
     cfg = Config.fromfile(args.cfg_file)
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids
     args.save_folder = os.path.join(cfg['train_cfg']['save_folder'], args.optimizer)
     if not os.path.exists(args.save_folder):
         os.makedirs(args.save_folder)
@@ -130,7 +129,7 @@ def train():
     dataset = VOCDetection(args.training_dataset, preproc(img_dim, rgb_means), AnnotationTransform())
 
     epoch_size = math.ceil(len(dataset) / batch_size)
-    max_iter = args.max_epoch * epoch_size
+    max_iter = int(args.max_epoch) * epoch_size
 
     stepvalues = (200 * epoch_size, 250 * epoch_size)
     step_index = 0
