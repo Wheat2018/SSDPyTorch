@@ -19,17 +19,17 @@ from FlashNet.facedet.dataset import LandmarkAnnotationTransform, AnnotationTran
     detection_collate, preproc_ldmk, preproc, SSDAugmentation
 from FlashNet.facedet.losses import MultiBoxLoss
 # from losses import FocalLoss
-from FlashNet.facedet.utils.anchor.prior_box import PriorBox
+from FlashNet.facedet.utils.anchor.prior_box import PriorBox as PriorBox
 from FlashNet.facedet.utils.misc import add_flops_counting_methods, flops_to_string, get_model_parameters_number
 from FlashNet.facedet.dataset import data_prefetcher
 from FlashNet.facedet.models.flashnet import FlashNet
-from FlashNet.facedet.utils.anchor.prior_box import PriorBox
 import time
 import math
 import logging
 from datetime import datetime
 from mmcv import Config
-from dataset import *
+from dataset import WIDER
+import numpy as np
 
 os.makedirs("./work_dir/logs/", exist_ok=True)
 logging.basicConfig(filename='./work_dir/logs/train_{}.log'.format(datetime.now().strftime('%Y_%m_%d_%H_%M_%S')), level=logging.DEBUG)
