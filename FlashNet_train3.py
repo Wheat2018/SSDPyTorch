@@ -9,28 +9,29 @@ sys.path.append(os.getcwd())
 
 import torch
 import torch.optim as optim
+from FlashNet.facedet.utils.optim import AdamW
 import torch.backends.cudnn as cudnn
 import argparse
 from torch.autograd import Variable
 import torch.utils.data as data
 
-from FlashNet.facedet.utils.optim import AdamW
 from FlashNet.facedet.dataset import LandmarkAnnotationTransform, AnnotationTransform, VOCDetection, \
     detection_collate, preproc_ldmk, preproc, SSDAugmentation
 from FlashNet.facedet.losses import MultiBoxLoss
 # from losses import FocalLoss
-from FlashNet.facedet.utils.anchor.prior_box import PriorBox as PriorBox
-from FlashNet.facedet.utils.misc import add_flops_counting_methods, flops_to_string, get_model_parameters_number
-from FlashNet.facedet.dataset import data_prefetcher
-from FlashNet.facedet.models.flashnet import FlashNet
+from FlashNet.facedet.utils.anchor.prior_box import PriorBox
 import time
 import math
+from FlashNet.facedet.utils.misc import add_flops_counting_methods, flops_to_string, get_model_parameters_number
+from FlashNet.facedet.dataset import data_prefetcher
 import logging
 from datetime import datetime
-from mmcv import Config
-from dataset import WIDER
-import numpy as np
 
+# os.makedirs("./work_dir/logs/", exist_ok=True)
+# logging.basicConfig(filename='./work_dir/logs/train_{}.log'.format(datetime.now().strftime('%Y_%m_%d_%H_%M_%S')), level=logging.DEBUG)
+#
+# torch.cuda.empty_cache()
+# torch.multiprocessing.set_sharing_strategy('file_system')
 # import resource
 # rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
 # resource.setrlimit(resource.RLIMIT_NOFILE, (2048, rlimit[1]))
@@ -58,45 +59,58 @@ parser.add_argument('--gpu_ids', type=str, default='0')
 args = parser.parse_args()
 
 
-class AugmentationCall:
-    def __init__(self, func):
-        self.func = func
-
-    def __call__(self, image, boxes, labels):
-        h, w, _ = image.shape
-        boxes[:, 0] *= w
-        boxes[:, 1] *= h
-        boxes[:, 2] *= w
-        boxes[:, 3] *= h
-        image, targets = self.func(image, np.hstack((boxes, np.expand_dims(labels, axis=1))))
-        image = image.transpose(1, 2, 0)
-        image = image[:, :, (2, 1, 0)]
-        return image, targets[:, :-1], targets[:, -1]
-
-
 def train():
+    if not os.path.exists(args.save_folder):
+        os.makedirs(args.save_folder)
 
-    cfg = Config.fromfile('./FlashNet/facedet/configs/flashnet_1024_2_anchor.py')
+    from mmcv import Config
+
+    cfg = Config.fromfile(args.cfg_file)
+    args.save_folder = os.path.join(cfg['train_cfg']['save_folder'], args.optimizer)
+    if not os.path.exists(args.save_folder):
+        os.makedirs(args.save_folder)
+    import FlashNet.facedet.models as models
+
+    net = models.__dict__[cfg['net_cfg']['net_name']](phase='train', cfg=cfg['net_cfg'])
+
     rgb_means = (104, 117, 123)
     img_dim = cfg['train_cfg']['input_size']
 
-    dataset = WIDER(dataset='train',
-                    image_enhancement_fn=AugmentationCall(preproc(img_dim, rgb_means)),
-                    allow_empty_box=False)  # FlashNet not allow training picture without gt box
-    dataset_cfg = dataset.cfg
+    print("Printing net...")
+    # print(net)
+    # img_dim = 1024
+    input_size = (1, 3, img_dim, img_dim)
 
+    img = torch.FloatTensor(input_size[0], input_size[1], input_size[2], input_size[3])
+    net = add_flops_counting_methods(net)
+    net.start_flops_count()
+    feat = net(img)
+    flops = net.compute_average_flops_cost()
+    print('Net Flops:  {}'.format(flops_to_string(flops)))
+    print('Net Params: ' + get_model_parameters_number(net))
 
-    flash_net = FlashNet(phase='train', cfg=cfg['net_cfg'])
-    net = flash_net
+    if args.resume_net is not None:
+        print('Loading resume network...')
+        state_dict = torch.load(args.resume_net)
+        # create new OrderedDict that does not contain `module.`
+        from collections import OrderedDict
+
+        new_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            head = k[:7]
+            if head == 'module.':
+                name = k[7:]  # remove `module.`
+            else:
+                name = k
+            new_state_dict[name] = v
+        net.load_state_dict(new_state_dict, strict=False)
 
     if args.cuda:
-        net = torch.nn.DataParallel(net)
+        net.cuda()
         cudnn.benchmark = True
-        net = net.cuda()
 
     if args.optimizer == 'SGD':
-        optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum,
-                              weight_decay=args.weight_decay)
+        optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
     elif args.optimizer == 'AdamW':
         optimizer = AdamW(net.parameters(),
                           lr=args.lr,
@@ -107,45 +121,90 @@ def train():
     else:
         raise NotImplementedError('Please use SGD or Adamw as optimizer')
 
+    criterion = MultiBoxLoss(2, 0.35, True, 0, True, 3, 0.35, False, cfg['train_cfg']['use_ldmk'])
+
+    priorbox = PriorBox(cfg['anchor_cfg'])
+
     with torch.no_grad():
-        priors = PriorBox(cfg['anchor_cfg']).forward()
+        priors = priorbox.forward()
         if args.cuda:
             priors = priors.cuda()
-    criterion = MultiBoxLoss(2, 0.35, True, 0, True, 3, 0.35, False, cfg['train_cfg']['use_ldmk'])
 
     net.train()
 
-    # loss counters
-    loc_loss = 0
-    conf_loss = 0
-    epoch = 0
-    print('Loading the dataset...')
+    batch_size = args.batch_size
 
-    epoch_size = len(dataset) // args.batch_size
-    print('Training SSD on:', dataset.name)
-    print('Using the specified args:')
-    print(args)
+    epoch = 0 + args.resume_epoch
+    print('Loading Dataset...')
+    anchors = cfg['anchor_cfg']['anchors']
 
+    dataset = VOCDetection(args.training_dataset, preproc(img_dim, rgb_means), AnnotationTransform())
+
+    epoch_size = math.ceil(len(dataset) / args.batch_size)
+    max_iter = args.max_epoch * epoch_size
+
+    stepvalues = (200 * epoch_size, 250 * epoch_size)
     step_index = 0
 
-    iter_plot = None
-    epoch_plot = None
-    print('len:', len(dataset))
-    data_loader = data.DataLoader(dataset, args.batch_size,
-                                  num_workers=args.num_workers,
-                                  shuffle=True, collate_fn=detection_collate,
-                                  pin_memory=True)
-    # create batch iterator
-    batch_iterator = iter(data_loader)
-    for iteration in range(0, dataset_cfg['max_iter']):
+    if args.resume_epoch > 0:
+        start_iter = args.resume_epoch * epoch_size
+    else:
+        start_iter = 0
+
+    for iteration in range(start_iter, max_iter):
+        if iteration % epoch_size == 0:
+            # create batch iterator
+            train_loader = data.DataLoader(dataset, batch_size, shuffle=True, \
+                                           num_workers=args.num_workers, collate_fn=detection_collate, drop_last=True)
+            # prefetcher = data_prefetcher(train_loader)
+            batch_iterator = iter(train_loader)
+
+            # batch_iterator = iter(data.DataLoader(dataset, batch_size, shuffle=True, num_workers=args.num_workers, collate_fn=detection_collate, drop_last=True))
+            if (epoch % 5 == 0 and epoch > 0) or (epoch % 5 == 0 and epoch > 200):
+                torch.save(net.state_dict(), args.save_folder + 'epoch_' + repr(epoch) + '.pth')
+            epoch += 1
+
+        load_t0 = time.time()
+        if iteration in stepvalues:
+            step_index += 1
+        lr = adjust_learning_rate(optimizer, args.gamma, epoch, step_index, iteration, epoch_size)
 
         # load train data
-        try:
-            images, targets = next(batch_iterator)
-        except StopIteration as e:
-            batch_iterator = iter(data_loader)
-            images, targets = next(batch_iterator)
+        # images, targets = next(batch_iterator)
+        # images, targets = prefetcher.next()
+        images, targets = next(batch_iterator)
 
+        if images is None:
+            continue
+
+        if args.cuda:
+            images = Variable(images.cuda())
+            targets = [Variable(anno.cuda()) for anno in targets]
+        else:
+            images = Variable(images)
+            targets = [Variable(anno) for anno in targets]
+
+        out = net(images)
+
+        # backprop
+        optimizer.zero_grad()
+        loss_l, loss_c = criterion(out, priors, targets)
+        loss = cfg['train_cfg']['loc_weight'] * loss_l + cfg['train_cfg']['cls_weight'] * loss_c
+
+        loss.backward()
+        optimizer.step()
+
+        load_t1 = time.time()
+        if iteration % 10 == 0:
+            print('Epoch:' + repr(epoch) + ' || epochiter: ' + repr(iteration % epoch_size) \
+                  + '/' + repr(epoch_size) \
+                  + '|| Totel iter ' + repr(iteration) \
+                  + ' || L: %.4f C: %.4f||' % (cfg['train_cfg']['loc_weight'] * loss_l.item(), \
+                                               cfg['train_cfg']['cls_weight'] * loss_c.item()) \
+                  + 'Batch time: %.4f sec. ||' % (load_t1 - load_t0) \
+                  + 'LR: %.8f' % (lr))
+
+    torch.save(net.state_dict(), args.save_folder + 'Final_epoch.pth')
 
 
 def adjust_learning_rate(optimizer, gamma, epoch, step_index, iteration, epoch_size):
