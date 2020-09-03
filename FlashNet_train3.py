@@ -156,7 +156,7 @@ def train():
     print('Loading Dataset...')
     anchors = cfg['anchor_cfg']['anchors']
 
-    # dataset = VOCDetection(args.training_dataset, preproc(img_dim, rgb_means), AnnotationTransform())
+    dataset = VOCDetection(args.training_dataset, preproc(img_dim, rgb_means), AnnotationTransform())
     dataset = WIDER(dataset='train',
                     image_enhancement_fn=AugmentationCall(preproc(img_dim, rgb_means)),
                     allow_empty_box=False)  # FlashNet not allow training picture without gt box
@@ -177,8 +177,7 @@ def train():
             # create batch iterator
             train_loader = data.DataLoader(dataset, batch_size, shuffle=True, \
                                            num_workers=args.num_workers, collate_fn=detection_collate, drop_last=True)
-            # prefetcher = data_prefetcher(train_loader)
-            batch_iterator = iter(train_loader)
+            prefetcher = data_prefetcher(train_loader)
 
             # batch_iterator = iter(data.DataLoader(dataset, batch_size, shuffle=True, num_workers=args.num_workers, collate_fn=detection_collate, drop_last=True))
             if (epoch % 5 == 0 and epoch > 0) or (epoch % 5 == 0 and epoch > 200):
@@ -192,8 +191,7 @@ def train():
 
         # load train data
         # images, targets = next(batch_iterator)
-        # images, targets = prefetcher.next()
-        images, targets = next(batch_iterator)
+        images, targets = prefetcher.next()
 
         if images is None:
             continue
