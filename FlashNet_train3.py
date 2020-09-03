@@ -162,32 +162,6 @@ def train():
         if images is None:
             continue
 
-        if args.cuda:
-            images = Variable(images.cuda())
-            targets = [Variable(anno.cuda()) for anno in targets]
-        else:
-            images = Variable(images)
-            targets = [Variable(anno) for anno in targets]
-
-        out = net(images)
-
-        # backprop
-        optimizer.zero_grad()
-        loss_l, loss_c = criterion(out, priors, targets)
-        loss = cfg['train_cfg']['loc_weight'] * loss_l + cfg['train_cfg']['cls_weight'] * loss_c
-
-        loss.backward()
-        optimizer.step()
-
-        load_t1 = time.time()
-        if iteration % 10 == 0:
-            print('Epoch:' + repr(epoch) + ' || epochiter: ' + repr(iteration % epoch_size) \
-                  + '/' + repr(epoch_size) \
-                  + '|| Totel iter ' + repr(iteration) \
-                  + ' || L: %.4f C: %.4f||' % (cfg['train_cfg']['loc_weight'] * loss_l.item(), \
-                                               cfg['train_cfg']['cls_weight'] * loss_c.item()) \
-                  + 'Batch time: %.4f sec. ||' % (load_t1 - load_t0) \
-                  + 'LR: %.8f' % (lr))
 
     torch.save(net.state_dict(), args.save_folder + 'Final_epoch.pth')
 
