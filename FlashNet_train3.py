@@ -31,11 +31,6 @@ from mmcv import Config
 from dataset import WIDER
 import numpy as np
 
-os.makedirs("./work_dir/logs/", exist_ok=True)
-logging.basicConfig(filename='./work_dir/logs/train_{}.log'.format(datetime.now().strftime('%Y_%m_%d_%H_%M_%S')), level=logging.DEBUG)
-
-torch.cuda.empty_cache()
-torch.multiprocessing.set_sharing_strategy('file_system')
 # import resource
 # rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
 # resource.setrlimit(resource.RLIMIT_NOFILE, (2048, rlimit[1]))
@@ -142,7 +137,7 @@ def train():
                                   pin_memory=True)
     # create batch iterator
     batch_iterator = iter(data_loader)
-    for iteration in range(args.start_iter, dataset_cfg['max_iter']):
+    for iteration in range(0, dataset_cfg['max_iter']):
 
         # load train data
         try:
