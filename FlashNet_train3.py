@@ -117,17 +117,12 @@ def train():
     criterion = MultiBoxLoss(2, 0.35, True, 0, True, 3, 0.35, False, cfg['train_cfg']['use_ldmk'])
 
     net.train()
-    loc_loss = 0
-    conf_loss = 0
-    epoch = 0
     print('Loading the dataset...')
 
-    epoch_size = len(dataset) // args.batch_size
     print('Training SSD on:', dataset.name)
     print('Using the specified args:')
     print(args)
 
-    step_index = 0
     data_loader = data.DataLoader(dataset, args.batch_size,
                                   num_workers=args.num_workers,
                                   shuffle=True, collate_fn=detection_collate,
@@ -136,12 +131,6 @@ def train():
     batch_iterator = iter(data_loader)
 
     for iteration in range(0, 120000):
-        if iteration % epoch_size == 0:
-
-            # batch_iterator = iter(data.DataLoader(dataset, batch_size, shuffle=True, num_workers=args.num_workers, collate_fn=detection_collate, drop_last=True))
-            if (epoch % 5 == 0 and epoch > 0) or (epoch % 5 == 0 and epoch > 200):
-                torch.save(net.state_dict(), args.save_folder + 'epoch_' + repr(epoch) + '.pth')
-            epoch += 1
 
         try:
             images, targets = next(batch_iterator)
