@@ -27,11 +27,11 @@ from FlashNet.facedet.dataset import data_prefetcher
 import logging
 from datetime import datetime
 
-os.makedirs("./work_dir/logs/", exist_ok=True)
-logging.basicConfig(filename='./work_dir/logs/train_{}.log'.format(datetime.now().strftime('%Y_%m_%d_%H_%M_%S')), level=logging.DEBUG)
-
-torch.cuda.empty_cache()
-torch.multiprocessing.set_sharing_strategy('file_system')
+# os.makedirs("./work_dir/logs/", exist_ok=True)
+# logging.basicConfig(filename='./work_dir/logs/train_{}.log'.format(datetime.now().strftime('%Y_%m_%d_%H_%M_%S')), level=logging.DEBUG)
+#
+# torch.cuda.empty_cache()
+# torch.multiprocessing.set_sharing_strategy('file_system')
 # import resource
 # rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
 # resource.setrlimit(resource.RLIMIT_NOFILE, (2048, rlimit[1]))
