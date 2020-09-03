@@ -95,11 +95,13 @@ def train():
     net = flash_net
 
     if args.cuda:
-        net.cuda()
+        net = torch.nn.DataParallel(net)
         cudnn.benchmark = True
+        net = net.cuda()
 
     if args.optimizer == 'SGD':
-        optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+        optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum,
+                              weight_decay=args.weight_decay)
     elif args.optimizer == 'AdamW':
         optimizer = AdamW(net.parameters(),
                           lr=args.lr,
@@ -117,34 +119,38 @@ def train():
     criterion = MultiBoxLoss(2, 0.35, True, 0, True, 3, 0.35, False, cfg['train_cfg']['use_ldmk'])
 
     net.train()
+
+    # loss counters
+    loc_loss = 0
+    conf_loss = 0
+    epoch = 0
     print('Loading the dataset...')
 
+    epoch_size = len(dataset) // args.batch_size
     print('Training SSD on:', dataset.name)
     print('Using the specified args:')
     print(args)
 
+    step_index = 0
+
+    iter_plot = None
+    epoch_plot = None
+    print('len:', len(dataset))
     data_loader = data.DataLoader(dataset, args.batch_size,
                                   num_workers=args.num_workers,
                                   shuffle=True, collate_fn=detection_collate,
                                   pin_memory=True)
     # create batch iterator
     batch_iterator = iter(data_loader)
+    for iteration in range(args.start_iter, dataset_cfg['max_iter']):
 
-    for iteration in range(0, 120000):
-
+        # load train data
         try:
             images, targets = next(batch_iterator)
         except StopIteration as e:
             batch_iterator = iter(data_loader)
             images, targets = next(batch_iterator)
 
-        # load train data
-        # images, targets = next(batch_iterator)
-        if images is None:
-            continue
-
-
-    torch.save(net.state_dict(), args.save_folder + 'Final_epoch.pth')
 
 
 def adjust_learning_rate(optimizer, gamma, epoch, step_index, iteration, epoch_size):
