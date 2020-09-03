@@ -187,13 +187,20 @@ def train():
     else:
         start_iter = 0
 
+    data_loader = data.DataLoader(dataset, args.batch_size,
+                                  num_workers=args.num_workers,
+                                  shuffle=True, collate_fn=detection_collate,
+                                  pin_memory=True)
+    # create batch iterator
+    batch_iterator = iter(data_loader)
+
     for iteration in range(start_iter, max_iter):
         if iteration % epoch_size == 0:
             # create batch iterator
-            train_loader = data.DataLoader(dataset, batch_size, shuffle=True, \
-                                           num_workers=args.num_workers, collate_fn=detection_collate, drop_last=True)
-            # prefetcher = data_prefetcher(train_loader)
-            batch_iter = iter(train_loader)
+            # train_loader = data.DataLoader(dataset, batch_size, shuffle=True, \
+            #                                num_workers=args.num_workers, collate_fn=detection_collate, drop_last=True)
+            # # prefetcher = data_prefetcher(train_loader)
+            # batch_iter = iter(train_loader)
 
             # batch_iterator = iter(data.DataLoader(dataset, batch_size, shuffle=True, num_workers=args.num_workers, collate_fn=detection_collate, drop_last=True))
             if (epoch % 5 == 0 and epoch > 0) or (epoch % 5 == 0 and epoch > 200):
@@ -208,7 +215,13 @@ def train():
         # load train data
         # images, targets = next(batch_iterator)
         # images, targets = prefetcher.next()
-        images, targets = next(batch_iter)
+        # images, targets = next(batch_iter)
+        try:
+            images, targets = next(batch_iterator)
+        except StopIteration as e:
+            batch_iterator = iter(data_loader)
+            images, targets = next(batch_iterator)
+
         if images is None:
             continue
 
