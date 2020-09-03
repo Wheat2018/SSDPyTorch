@@ -22,10 +22,12 @@ from FlashNet.facedet.losses import MultiBoxLoss
 from FlashNet.facedet.utils.anchor.prior_box import PriorBox
 from FlashNet.facedet.utils.misc import add_flops_counting_methods, flops_to_string, get_model_parameters_number
 from FlashNet.facedet.dataset import data_prefetcher
+from FlashNet.facedet.models.flashnet import FlashNet
 import time
 import math
 import logging
 from datetime import datetime
+from mmcv import Config
 
 os.makedirs("./work_dir/logs/", exist_ok=True)
 logging.basicConfig(filename='./work_dir/logs/train_{}.log'.format(datetime.now().strftime('%Y_%m_%d_%H_%M_%S')), level=logging.DEBUG)
@@ -60,12 +62,11 @@ args = parser.parse_args()
 
 
 def train():
-    from mmcv import Config
 
     cfg = Config.fromfile(args.cfg_file)
-    import FlashNet.facedet.models as models
 
-    net = models.__dict__[cfg['net_cfg']['net_name']](phase='train', cfg=cfg['net_cfg'])
+    flash_net = FlashNet(phase='train', cfg=cfg['net_cfg'])
+    net = flash_net
 
     rgb_means = (104, 117, 123)
     img_dim = cfg['train_cfg']['input_size']
