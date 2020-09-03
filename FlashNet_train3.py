@@ -28,6 +28,7 @@ import math
 import logging
 from datetime import datetime
 from mmcv import Config
+from dataset import *
 
 os.makedirs("./work_dir/logs/", exist_ok=True)
 logging.basicConfig(filename='./work_dir/logs/train_{}.log'.format(datetime.now().strftime('%Y_%m_%d_%H_%M_%S')), level=logging.DEBUG)
@@ -61,17 +62,36 @@ parser.add_argument('--gpu_ids', type=str, default='0')
 args = parser.parse_args()
 
 
+class AugmentationCall:
+    def __init__(self, func):
+        self.func = func
+
+    def __call__(self, image, boxes, labels):
+        h, w, _ = image.shape
+        boxes[:, 0] *= w
+        boxes[:, 1] *= h
+        boxes[:, 2] *= w
+        boxes[:, 3] *= h
+        image, targets = self.func(image, np.hstack((boxes, np.expand_dims(labels, axis=1))))
+        image = image.transpose(1, 2, 0)
+        image = image[:, :, (2, 1, 0)]
+        return image, targets[:, :-1], targets[:, -1]
+
+
 def train():
 
-    cfg = Config.fromfile(args.cfg_file)
-
-    flash_net = FlashNet(phase='train', cfg=cfg['net_cfg'])
-    net = flash_net
-
+    cfg = Config.fromfile('./FlashNet/facedet/configs/flashnet_1024_2_anchor.py')
     rgb_means = (104, 117, 123)
     img_dim = cfg['train_cfg']['input_size']
 
-    batch_size = args.batch_size
+    dataset = WIDER(dataset='train',
+                    image_enhancement_fn=AugmentationCall(preproc(img_dim, rgb_means)),
+                    allow_empty_box=False)  # FlashNet not allow training picture without gt box
+    dataset_cfg = dataset.cfg
+
+
+    flash_net = FlashNet(phase='train', cfg=cfg['net_cfg'])
+    net = flash_net
 
     if args.cuda:
         net.cuda()
@@ -93,7 +113,9 @@ def train():
     epoch = args.resume_epoch
     print('Loading Dataset...')
 
-    dataset = VOCDetection(args.training_dataset, preproc(img_dim, rgb_means), AnnotationTransform())
+    # dataset = VOCDetection(args.training_dataset, preproc(img_dim, rgb_means), AnnotationTransform())
+
+    batch_size = args.batch_size
 
     epoch_size = math.ceil(len(dataset) / batch_size)
     max_iter = int(args.max_epoch) * epoch_size
