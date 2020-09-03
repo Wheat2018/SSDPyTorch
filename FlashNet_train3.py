@@ -9,21 +9,21 @@ sys.path.append(os.getcwd())
 
 import torch
 import torch.optim as optim
-from FlashNet.facedet.utils.optim import AdamW
 import torch.backends.cudnn as cudnn
 import argparse
 from torch.autograd import Variable
 import torch.utils.data as data
 
+from FlashNet.facedet.utils.optim import AdamW
 from FlashNet.facedet.dataset import LandmarkAnnotationTransform, AnnotationTransform, VOCDetection, \
     detection_collate, preproc_ldmk, preproc, SSDAugmentation
 from FlashNet.facedet.losses import MultiBoxLoss
 # from losses import FocalLoss
 from FlashNet.facedet.utils.anchor.prior_box import PriorBox
-import time
-import math
 from FlashNet.facedet.utils.misc import add_flops_counting_methods, flops_to_string, get_model_parameters_number
 from FlashNet.facedet.dataset import data_prefetcher
+import time
+import math
 import logging
 from datetime import datetime
 
@@ -78,22 +78,6 @@ def train():
     img_dim = cfg['train_cfg']['input_size']
 
     batch_size = args.batch_size
-    weight_decay = args.weight_decay
-    gamma = args.gamma
-    momentum = args.momentum
-
-    print("Printing net...")
-    # print(net)
-    # img_dim = 1024
-    input_size = (1, 3, img_dim, img_dim)
-
-    img = torch.FloatTensor(input_size[0], input_size[1], input_size[2], input_size[3])
-    net = add_flops_counting_methods(net)
-    net.start_flops_count()
-    feat = net(img)
-    flops = net.compute_average_flops_cost()
-    print('Net Flops:  {}'.format(flops_to_string(flops)))
-    print('Net Params: ' + get_model_parameters_number(net))
 
     if args.resume_net is not None:
         print('Loading resume network...')
@@ -130,10 +114,7 @@ def train():
     else:
         raise NotImplementedError('Please use SGD or Adamw as optimizer')
 
-    if cfg['net_cfg']['num_classes'] == 2:
-        criterion = MultiBoxLoss(2, 0.35, True, 0, True, 3, 0.35, False, cfg['train_cfg']['use_ldmk'])
-    else:
-        criterion = FocalLoss(num_classes=1, overlap_thresh=0.35)
+    criterion = MultiBoxLoss(2, 0.35, True, 0, True, 3, 0.35, False, cfg['train_cfg']['use_ldmk'])
 
     priorbox = PriorBox(cfg['anchor_cfg'])
 
@@ -143,24 +124,19 @@ def train():
             priors = priors.cuda()
 
     net.train()
-    epoch = 0 + args.resume_epoch
+    epoch = args.resume_epoch
     print('Loading Dataset...')
-    anchors = cfg['anchor_cfg']['anchors']
 
-    if cfg['train_cfg']['use_ldmk']:
-        dataset = VOCDetection(args.training_dataset, preproc_ldmk(img_dim, rgb_means),
-                               LandmarkAnnotationTransform())
-    else:
-        dataset = VOCDetection(args.training_dataset, preproc(img_dim, rgb_means), AnnotationTransform())
+    dataset = VOCDetection(args.training_dataset, preproc(img_dim, rgb_means), AnnotationTransform())
 
-    epoch_size = math.ceil(len(dataset) / args.batch_size)
+    epoch_size = math.ceil(len(dataset) / batch_size)
     max_iter = args.max_epoch * epoch_size
 
     stepvalues = (200 * epoch_size, 250 * epoch_size)
     step_index = 0
 
     if args.resume_epoch > 0:
-        start_iter = args.resume_epoch * epoch_size
+        start_iter = epoch * epoch_size
     else:
         start_iter = 0
 
@@ -194,84 +170,25 @@ def train():
             images = Variable(images)
             targets = [Variable(anno) for anno in targets]
 
-        # forward
-        # img = images.squeeze(0).cpu().numpy().transpose(1, 2, 0) + rgb_means
-        # import numpy as np
-        # img = img.astype(np.uint8).copy()
-        #
-        # import cv2
-        # boxes = targets[0][:, 0:4].reshape(-1,4).cpu().numpy()
-        #
-        # boxes = boxes * 640
-        # for box in boxes:
-        #     xmin, ymin, xmax, ymax = np.ceil(box)
-        #     cv2.rectangle(img, (int(xmin), int(ymin)), (int(xmax), int(ymax)), (255, 0, 255), 2)
-        #
-        # if not os.path.exists('show_train_img_with_anno'):
-        #     os.makedirs('show_train_img_with_anno')
-        #
-        # # print(os.path.join('./show_train_img_with_anno/', str(iteration) + '.jpg'))
-        # cv2.imwrite(os.path.join('./show_train_img_with_anno/', str(iteration)+'no_rotate'+'.jpg'), img)
-        # print(iteration)
-        # continue
-
         out = net(images)
 
         # backprop
         optimizer.zero_grad()
-        if cfg['train_cfg']['use_ldmk']:
-            loss_landmark, loss_l, loss_c = criterion(out, priors, targets)
-            loss = cfg['train_cfg']['landmark_weight'] * loss_landmark + \
-                   cfg['train_cfg']['loc_weight'] * loss_l + \
-                   cfg['train_cfg']['cls_weight'] * loss_c
-        else:
-            loss_l, loss_c = criterion(out, priors, targets)
-            loss = cfg['train_cfg']['loc_weight'] * loss_l + cfg['train_cfg']['cls_weight'] * loss_c
+        loss_l, loss_c = criterion(out, priors, targets)
+        loss = cfg['train_cfg']['loc_weight'] * loss_l + cfg['train_cfg']['cls_weight'] * loss_c
 
         loss.backward()
         optimizer.step()
 
-
-        # from facedet.utils.misc.vis_cnn import make_dot
-        # g = make_dot(loss_l)
-        # g.format = 'pdf'
-        # g.render('loss_loc')
-        # g = make_dot(loss_c)
-        # g.format = 'pdf'
-        # g.render('loss_cls')
-        # g = make_dot(loss_landmark)
-        # g.format = 'pdf'
-        # g.render('loss_landmark')
-        #
-        # import pdb
-        # pdb.set_trace()
-
         load_t1 = time.time()
         if iteration % 10 == 0:
-            if cfg['train_cfg']['use_ldmk']:
-                logging.info('Epoch:' + repr(epoch) + ' || epochiter: ' + repr(iteration % epoch_size)
-                      + '/' + repr(epoch_size)
-                      + ' ||Landmark: %.4f L: %.4f C: %.4f||' % (cfg['train_cfg']['landmark_weight'] * loss_landmark.item(),
-                                                                  cfg['train_cfg']['loc_weight'] * loss_l.item(),
-                                                                cfg['train_cfg']['cls_weight'] * loss_c.item())
-                      + 'Batch time: %.4f sec. ||' % (load_t1 - load_t0) \
-                      + 'LR: %.8f' % (lr))
-
-                print('Epoch:' + repr(epoch) + ' || epochiter: ' + repr(iteration % epoch_size) \
-                      + '/' + repr(epoch_size) \
-                      + ' ||Landmark: %.4f L: %.4f C: %.4f||' % (cfg['train_cfg']['landmark_weight'] * loss_landmark.item(),
-                                                                  cfg['train_cfg']['loc_weight'] * loss_l.item(), \
-                                                                cfg['train_cfg']['cls_weight'] * loss_c.item()) \
-                      + 'Batch time: %.4f sec. ||' % (load_t1 - load_t0) \
-                      + 'LR: %.8f' % (lr))
-            else:
-                print('Epoch:' + repr(epoch) + ' || epochiter: ' + repr(iteration % epoch_size) \
-                      + '/' + repr(epoch_size) \
-                      + '|| Totel iter ' + repr(iteration) \
-                      + ' || L: %.4f C: %.4f||' % (cfg['train_cfg']['loc_weight'] * loss_l.item(), \
-                                                   cfg['train_cfg']['cls_weight'] * loss_c.item()) \
-                      + 'Batch time: %.4f sec. ||' % (load_t1 - load_t0) \
-                      + 'LR: %.8f' % (lr))
+            print('Epoch:' + repr(epoch) + ' || epochiter: ' + repr(iteration % epoch_size) \
+                  + '/' + repr(epoch_size) \
+                  + '|| Totel iter ' + repr(iteration) \
+                  + ' || L: %.4f C: %.4f||' % (cfg['train_cfg']['loc_weight'] * loss_l.item(), \
+                                               cfg['train_cfg']['cls_weight'] * loss_c.item()) \
+                  + 'Batch time: %.4f sec. ||' % (load_t1 - load_t0) \
+                  + 'LR: %.8f' % (lr))
 
     torch.save(net.state_dict(), args.save_folder + 'Final_epoch.pth')
 
