@@ -26,6 +26,8 @@ from FlashNet.facedet.utils.misc import add_flops_counting_methods, flops_to_str
 from FlashNet.facedet.dataset import data_prefetcher
 import logging
 from datetime import datetime
+from dataset.wider import WIDER
+import numpy as np
 
 # os.makedirs("./work_dir/logs/", exist_ok=True)
 # logging.basicConfig(filename='./work_dir/logs/train_{}.log'.format(datetime.now().strftime('%Y_%m_%d_%H_%M_%S')), level=logging.DEBUG)
@@ -57,6 +59,22 @@ parser.add_argument('--frozen', default=False, type=bool, help='Froze some layer
 parser.add_argument('--optimizer', type=str, default='AdamW', choices=['SGD', 'AdamW'])
 parser.add_argument('--gpu_ids', type=str, default='0')
 args = parser.parse_args()
+
+
+class AugmentationCall:
+    def __init__(self, func):
+        self.func = func
+
+    def __call__(self, image, boxes, labels):
+        h, w, _ = image.shape
+        boxes[:, 0] *= w
+        boxes[:, 1] *= h
+        boxes[:, 2] *= w
+        boxes[:, 3] *= h
+        image, targets = self.func(image, np.hstack((boxes, np.expand_dims(labels, axis=1))))
+        image = image.transpose(1, 2, 0)
+        image = image[:, :, (2, 1, 0)]
+        return image, targets[:, :-1], targets[:, -1]
 
 
 def train():
@@ -138,7 +156,10 @@ def train():
     print('Loading Dataset...')
     anchors = cfg['anchor_cfg']['anchors']
 
-    dataset = VOCDetection(args.training_dataset, preproc(img_dim, rgb_means), AnnotationTransform())
+    # dataset = VOCDetection(args.training_dataset, preproc(img_dim, rgb_means), AnnotationTransform())
+    dataset = WIDER(dataset='train',
+                    image_enhancement_fn=AugmentationCall(preproc(img_dim, rgb_means)),
+                    allow_empty_box=False)  # FlashNet not allow training picture without gt box
 
     epoch_size = math.ceil(len(dataset) / args.batch_size)
     max_iter = args.max_epoch * epoch_size
