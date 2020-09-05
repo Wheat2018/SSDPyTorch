@@ -216,7 +216,8 @@ def train():
 
             # batch_iterator = iter(data.DataLoader(dataset, batch_size, shuffle=True, num_workers=args.num_workers, collate_fn=detection_collate, drop_last=True))
             if (epoch % 5 == 0 and epoch > 0) or (epoch % 5 == 0 and epoch > 200):
-                torch.save(net.state_dict(), args.save_folder + 'epoch_' + repr(epoch) + '.pth')
+                print('saved:', os.path.join(args.save_folder, 'epoch_' + repr(epoch) + '.pth'))
+                torch.save(net.state_dict(), os.path.join(args.save_folder, 'epoch_' + repr(epoch) + '.pth'))
             epoch += 1
 
         load_t0 = time.time()
