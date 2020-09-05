@@ -66,8 +66,8 @@ img_dim = cfg['train_cfg']['input_size']
 net = FlashNet(phase='test', cfg=cfg['net_cfg'])
 net.eval()
 
-testset = WIDER(dataset='test', image_enhancement_fn=BaseTransform((0, 1600), (104.0, 117.0, 123.0)))
-# testset = FDDB(dataset='test', image_enhancement_fn=BaseTransform((-1, 800), (104.0, 117.0, 123.0)))
+# testset = WIDER(dataset='val', image_enhancement_fn=BaseTransform((0, 1600), (104.0, 117.0, 123.0)))
+testset = FDDB(dataset='test', image_enhancement_fn=BaseTransform((-1, 1600), (104.0, 117.0, 123.0)))
 # testset = FDDB(dataset='test', image_enhancement_fn=AugmentationCall(preproc(img_dim, rgb_means)))
 
 # load_weights(net, path.join(WEIGHT_ROOT, 'FlashNet_' + testset.name + '_2000.pth'))

@@ -15,7 +15,7 @@ import argparse
 from torch.autograd import Variable
 import torch.utils.data as data
 
-from FlashNet.facedet.dataset import LandmarkAnnotationTransform, AnnotationTransform, VOCDetection, \
+from FlashNet.facedet.dataset import LandmarkAnnotationTransform, AnnotationTransform, \
     detection_collate, preproc_ldmk, preproc, SSDAugmentation
 from FlashNet.facedet.losses import MultiBoxLoss
 # from losses import FocalLoss
@@ -28,6 +28,9 @@ import logging
 from datetime import datetime
 from dataset.wider import WIDER
 import numpy as np
+import random
+import cv2
+import xml.etree.ElementTree as ET
 
 # os.makedirs("./work_dir/logs/", exist_ok=True)
 # logging.basicConfig(filename='./work_dir/logs/train_{}.log'.format(datetime.now().strftime('%Y_%m_%d_%H_%M_%S')), level=logging.DEBUG)
@@ -75,6 +78,38 @@ class AugmentationCall:
         image = image.transpose(1, 2, 0)
         image = image[:, :, (2, 1, 0)]
         return image, targets[:, :-1], targets[:, -1]
+
+
+class VOCDetection(data.Dataset):
+    def __init__(self, root, preproc=None, target_transform=None):
+        self.root = root
+        self.preproc = preproc
+        self.target_transform = target_transform
+        self._annopath = os.path.join('%s', 'Annotations', '%s.xml')
+        self._imgpath = os.path.join('%s', 'JPEGImages', '%s.jpg')
+        self._imgpath1 = os.path.join('%s', 'JPEGImages', '%s.png')
+        self.ids = list()
+        for line in open(os.path.join(self.root, 'ImageSets', 'Main', 'trainval.txt')):
+            self.ids.append((self.root, line.strip()))
+        random.shuffle(self.ids)
+
+    def __getitem__(self, index):
+        img_id = self.ids[index]
+        target = ET.parse(self._annopath % img_id).getroot()
+        img = cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
+        assert img is not None
+        height, width, _ = img.shape
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        if self.preproc is not None:
+            img, target = self.preproc(img, target)
+
+        return torch.from_numpy(img), target
+
+    def __len__(self):
+        return len(self.ids)
 
 
 def train():
